@@ -45,6 +45,13 @@ public class StructLikeWrapper {
     this.hashCode = null;
   }
 
+  private StructLikeWrapper(StructLikeWrapper toCopy) {
+    this.comparator = toCopy.comparator;
+    this.structHash = toCopy.structHash;
+    this.hashCode = toCopy.hashCode;
+    this.struct = toCopy.struct;
+  }
+
   public StructLikeWrapper set(StructLike newStruct) {
     this.struct = newStruct;
     this.hashCode = null;
@@ -53,6 +60,10 @@ public class StructLikeWrapper {
 
   public StructLike get() {
     return struct;
+  }
+
+  public StructLikeWrapper copy() {
+    return new StructLikeWrapper(this);
   }
 
   @Override

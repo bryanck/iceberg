@@ -19,12 +19,9 @@
 
 package org.apache.iceberg.flink.source;
 
-import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
-import java.util.stream.Collectors;
-import org.apache.flink.api.common.functions.RichMapFunction;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.types.logical.RowType;
@@ -39,18 +36,13 @@ import org.apache.iceberg.flink.FlinkSchemaUtil;
 import org.apache.iceberg.flink.sink.RowDataTaskWriterFactory;
 import org.apache.iceberg.flink.sink.TaskWriterFactory;
 import org.apache.iceberg.io.FileIO;
-import org.apache.iceberg.io.TaskWriter;
+import org.apache.iceberg.io.RewriteResult;
 import org.apache.iceberg.relocated.com.google.common.collect.Lists;
 import org.apache.iceberg.util.PropertyUtil;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import static org.apache.iceberg.TableProperties.DEFAULT_NAME_MAPPING;
 
 public class RowDataRewriter {
-
-  private static final Logger LOG = LoggerFactory.getLogger(RowDataRewriter.class);
-
   private final Schema schema;
   private final FileFormat format;
   private final String nameMapping;
@@ -86,72 +78,14 @@ public class RowDataRewriter {
   }
 
   public List<DataFile> rewriteDataForTasks(DataStream<CombinedScanTask> dataStream, int parallelism) throws Exception {
-    RewriteMap map = new RewriteMap(schema, nameMapping, io, caseSensitive, encryptionManager, taskWriterFactory);
-    DataStream<List<DataFile>> ds = dataStream.map(map).setParallelism(parallelism);
-    return Lists.newArrayList(ds.executeAndCollect("Rewrite table :" + tableName)).stream().flatMap(Collection::stream)
-        .collect(Collectors.toList());
-  }
+    RewriteMapFunction map = new RewriteMapFunction(schema, nameMapping, io, caseSensitive,
+        encryptionManager, taskWriterFactory);
+    DataStream<RewriteResult> ds = dataStream.map(map).setParallelism(parallelism);
 
-  public static class RewriteMap extends RichMapFunction<CombinedScanTask, List<DataFile>> {
+    List<DataFile> dataFiles = Lists.newArrayList();
+    ds.executeAndCollect("")
+        .forEachRemaining(writeResult -> Collections.addAll(dataFiles, writeResult.dataFilesToAdd()));
 
-    private TaskWriter<RowData> writer;
-    private int subTaskId;
-    private int attemptId;
-
-    private final Schema schema;
-    private final String nameMapping;
-    private final FileIO io;
-    private final boolean caseSensitive;
-    private final EncryptionManager encryptionManager;
-    private final TaskWriterFactory<RowData> taskWriterFactory;
-
-    public RewriteMap(Schema schema, String nameMapping, FileIO io, boolean caseSensitive,
-                      EncryptionManager encryptionManager, TaskWriterFactory<RowData> taskWriterFactory) {
-      this.schema = schema;
-      this.nameMapping = nameMapping;
-      this.io = io;
-      this.caseSensitive = caseSensitive;
-      this.encryptionManager = encryptionManager;
-      this.taskWriterFactory = taskWriterFactory;
-    }
-
-    @Override
-    public void open(Configuration parameters) {
-      this.subTaskId = getRuntimeContext().getIndexOfThisSubtask();
-      this.attemptId = getRuntimeContext().getAttemptNumber();
-      // Initialize the task writer factory.
-      this.taskWriterFactory.initialize(subTaskId, attemptId);
-    }
-
-    @Override
-    public List<DataFile> map(CombinedScanTask task) throws Exception {
-      // Initialize the task writer.
-      this.writer = taskWriterFactory.create();
-      try (RowDataIterator iterator =
-               new RowDataIterator(task, io, encryptionManager, schema, schema, nameMapping, caseSensitive)) {
-        while (iterator.hasNext()) {
-          RowData rowData = iterator.next();
-          writer.write(rowData);
-        }
-        return Lists.newArrayList(writer.dataFiles());
-      } catch (Throwable originalThrowable) {
-        try {
-          LOG.error("Aborting commit for  (subTaskId {}, attemptId {})", subTaskId, attemptId);
-          writer.abort();
-          LOG.error("Aborted commit for  (subTaskId {}, attemptId {})", subTaskId, attemptId);
-        } catch (Throwable inner) {
-          if (originalThrowable != inner) {
-            originalThrowable.addSuppressed(inner);
-            LOG.warn("Suppressing exception in catch: {}", inner.getMessage(), inner);
-          }
-        }
-
-        if (originalThrowable instanceof Exception) {
-          throw originalThrowable;
-        } else {
-          throw new RuntimeException(originalThrowable);
-        }
-      }
-    }
+    return dataFiles;
   }
 }
