@@ -36,6 +36,7 @@ import org.apache.flink.table.data.util.DataFormatConverters;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.types.Row;
+import org.apache.iceberg.CombinedScanTask;
 import org.apache.iceberg.DataFile;
 import org.apache.iceberg.DistributionMode;
 import org.apache.iceberg.FileFormat;
@@ -44,6 +45,7 @@ import org.apache.iceberg.Schema;
 import org.apache.iceberg.Table;
 import org.apache.iceberg.flink.FlinkSchemaUtil;
 import org.apache.iceberg.flink.TableLoader;
+import org.apache.iceberg.flink.source.RewriteFunction;
 import org.apache.iceberg.flink.util.FlinkCompatibilityUtil;
 import org.apache.iceberg.io.WriteResult;
 import org.apache.iceberg.relocated.com.google.common.base.Preconditions;
@@ -55,6 +57,7 @@ import org.slf4j.LoggerFactory;
 
 import static org.apache.iceberg.TableProperties.DEFAULT_FILE_FORMAT;
 import static org.apache.iceberg.TableProperties.DEFAULT_FILE_FORMAT_DEFAULT;
+import static org.apache.iceberg.TableProperties.DEFAULT_NAME_MAPPING;
 import static org.apache.iceberg.TableProperties.WRITE_DISTRIBUTION_MODE;
 import static org.apache.iceberg.TableProperties.WRITE_DISTRIBUTION_MODE_DEFAULT;
 import static org.apache.iceberg.TableProperties.WRITE_TARGET_FILE_SIZE_BYTES;
@@ -65,6 +68,7 @@ public class FlinkSink {
 
   private static final String ICEBERG_STREAM_WRITER_NAME = IcebergStreamWriter.class.getSimpleName();
   private static final String ICEBERG_FILES_COMMITTER_NAME = IcebergFilesCommitter.class.getSimpleName();
+  private static final String COMPACT_COORDINATOR_NAME = CompactCoordinator.class.getSimpleName();
 
   private FlinkSink() {
   }
@@ -124,6 +128,7 @@ public class FlinkSink {
     private DistributionMode distributionMode = null;
     private Integer writeParallelism = null;
     private List<String> equalityFieldColumns = null;
+    private boolean autoCompact = false;
 
     private Builder() {
     }
@@ -205,6 +210,17 @@ public class FlinkSink {
       return this;
     }
 
+    /**
+     * Enable the auto-compact to rewrite the small files in the same flink streaming job.
+     *
+     * @param enable open the auto-compact switch.
+     * @return {@link Builder} to connect the iceberg table.
+     */
+    public Builder autoCompact(boolean enable) {
+      this.autoCompact = enable;
+      return this;
+    }
+
     @SuppressWarnings("unchecked")
     public DataStreamSink<RowData> build() {
       Preconditions.checkArgument(rowDataInput != null,
@@ -237,20 +253,37 @@ public class FlinkSink {
       // Distribute the records from input data stream based on the write.distribution-mode.
       rowDataInput = distributeDataStream(rowDataInput, table.properties(), table.spec(), table.schema(), flinkRowType);
 
+      // Create TaskWriterFactory
+      TaskWriterFactory<RowData> taskWriterFactory = createTaskWriterFactory(table, flinkRowType, equalityFieldIds);
+
       // Chain the iceberg stream writer and committer operator.
-      IcebergStreamWriter<RowData> streamWriter = createStreamWriter(table, flinkRowType, equalityFieldIds);
+      IcebergStreamWriter<RowData> streamWriter = createStreamWriter(table, taskWriterFactory);
       IcebergFilesCommitter filesCommitter = new IcebergFilesCommitter(tableLoader, overwrite);
 
       this.writeParallelism = writeParallelism == null ? rowDataInput.getParallelism() : writeParallelism;
 
-      DataStream<Void> returnStream = rowDataInput
+      DataStream<WriteResult> returnStream = rowDataInput
           .transform(ICEBERG_STREAM_WRITER_NAME, TypeInformation.of(WriteResult.class), streamWriter)
-          .setParallelism(writeParallelism)
-          .transform(ICEBERG_FILES_COMMITTER_NAME, Types.VOID, filesCommitter)
-          .setParallelism(1)
-          .setMaxParallelism(1);
+          .setParallelism(writeParallelism);
 
-      return returnStream.addSink(new DiscardingSink())
+      // Chain the iceberg stream auto-compaction compactor if enabled the feature.
+      if (autoCompact) {
+        CompactCoordinator coordinator = new CompactCoordinator(tableLoader);
+        RewriteFunction rewriteFunction = createRewriteFunction(table, taskWriterFactory);
+
+        returnStream = returnStream
+            .transform(COMPACT_COORDINATOR_NAME, TypeInformation.of(CombinedScanTask.class), coordinator)
+            .setMaxParallelism(1)
+            .setParallelism(1)
+            .map(rewriteFunction, TypeInformation.of(WriteResult.class))
+            .setMaxParallelism(rowDataInput.getParallelism())
+            .setParallelism(rowDataInput.getParallelism());
+      }
+
+      return returnStream.transform(ICEBERG_FILES_COMMITTER_NAME, Types.VOID, filesCommitter)
+          .setParallelism(1)
+          .setMaxParallelism(1)
+          .addSink(new DiscardingSink())
           .name(String.format("IcebergSink %s", table.name()))
           .setParallelism(1);
     }
@@ -310,17 +343,29 @@ public class FlinkSink {
     }
   }
 
-  static IcebergStreamWriter<RowData> createStreamWriter(Table table,
-                                                         RowType flinkRowType,
-                                                         List<Integer> equalityFieldIds) {
+  static TaskWriterFactory<RowData> createTaskWriterFactory(Table table,
+                                                            RowType flinkRowType,
+                                                            List<Integer> equalityFieldIds) {
     Map<String, String> props = table.properties();
     long targetFileSize = getTargetFileSizeBytes(props);
     FileFormat fileFormat = getFileFormat(props);
 
-    TaskWriterFactory<RowData> taskWriterFactory = new RowDataTaskWriterFactory(table.schema(), flinkRowType,
-        table.spec(), table.locationProvider(), table.io(), table.encryption(), targetFileSize, fileFormat, props,
-        equalityFieldIds);
+    return new RowDataTaskWriterFactory(table.schema(), flinkRowType, table.spec(), table.locationProvider(),
+        table.io(), table.encryption(), targetFileSize, fileFormat, props, equalityFieldIds);
+  }
 
+  static RewriteFunction createRewriteFunction(Table table, TaskWriterFactory<RowData> taskWriterFactory) {
+    String nameMapping = PropertyUtil.propertyAsString(table.properties(), DEFAULT_NAME_MAPPING, null);
+    return new RewriteFunction(table.schema(),
+        nameMapping,
+        table.io(),
+        false,
+        table.encryption(),
+        taskWriterFactory
+    );
+  }
+
+  static IcebergStreamWriter<RowData> createStreamWriter(Table table, TaskWriterFactory<RowData> taskWriterFactory) {
     return new IcebergStreamWriter<>(table.name(), taskWriterFactory);
   }
 

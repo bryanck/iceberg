@@ -19,21 +19,33 @@
 
 package org.apache.iceberg.flink;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
+import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.streaming.api.TimeCharacteristic;
+import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.Expressions;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
+import org.apache.flink.table.api.bridge.java.internal.StreamTableEnvironmentImpl;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
+import org.apache.flink.types.Row;
 import org.apache.iceberg.DistributionMode;
 import org.apache.iceberg.FileFormat;
 import org.apache.iceberg.Table;
 import org.apache.iceberg.TableProperties;
 import org.apache.iceberg.catalog.Namespace;
 import org.apache.iceberg.catalog.TableIdentifier;
+import org.apache.iceberg.flink.sink.TestFlinkIcebergSink;
+import org.apache.iceberg.flink.source.BoundedTestSource;
+import org.apache.iceberg.relocated.com.google.common.base.Joiner;
 import org.apache.iceberg.relocated.com.google.common.collect.ImmutableList;
 import org.apache.iceberg.relocated.com.google.common.collect.ImmutableMap;
 import org.apache.iceberg.relocated.com.google.common.collect.Lists;
@@ -46,6 +58,8 @@ import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
+
+import static org.apache.flink.table.api.Expressions.$;
 
 @RunWith(Parameterized.class)
 public class TestFlinkTableSink extends FlinkCatalogTestBase {
@@ -279,5 +293,82 @@ public class TestFlinkTableSink extends FlinkCatalogTestBase {
         SimpleDataUtil.partitionDataFiles(table, ImmutableMap.of("data", "ccc")).size());
 
     sql("DROP TABLE IF EXISTS %s.%s", flinkDatabase, tableName);
+  }
+
+  @Test
+  public void testAutoCompact() throws Exception {
+    Assume.assumeTrue("Test only flink streaming job.", isStreamingJob);
+    String sourceTableName = "test_source_table";
+    String targetTableName = "test_auto_compact";
+
+    // Register the rows into a temporary table.
+    List<Row> checkpoint1 = Lists.newArrayList(
+        Row.of(1, "aaa"),
+        Row.of(1, "bbb"),
+        Row.of(1, "ccc"),
+        Row.of(2, "aaa"),
+        Row.of(2, "bbb"),
+        Row.of(2, "ccc"),
+        Row.of(3, "aaa"),
+        Row.of(3, "bbb"),
+        Row.of(3, "ccc")
+    );
+    // Dummy checkpoint to flush all the data files.
+    List<Row> checkpoint2 = ImmutableList.of();
+    List<List<Row>> inputRows = ImmutableList.of(checkpoint1, checkpoint2);
+    StreamTableEnvironmentImpl streamEnv = (StreamTableEnvironmentImpl) getTableEnv();
+    DataStream<Row> stream = streamEnv.execEnv().addSource(
+        new BoundedTestSource<>(inputRows),
+        new RowTypeInfo(SimpleDataUtil.FLINK_SCHEMA.getFieldTypes())
+    );
+    streamEnv.createTemporaryView(sourceTableName, streamEnv.fromDataStream(stream, $("id"), $("data")));
+
+    // Select the rows into target iceberg table.
+    Map<String, String> tableProps = ImmutableMap.of(
+        TableProperties.DEFAULT_FILE_FORMAT, format.name(),
+        TableProperties.FLINK_AUTO_COMPACT_ENABLED, String.valueOf(true)
+    );
+
+    sql("CREATE TABLE %s(id INT, data VARCHAR) PARTITIONED BY (data) with %s",
+        targetTableName, toWithClause(tableProps));
+
+    // Insert data set.
+    sql("INSERT INTO %s SELECT * FROM %s", targetTableName, sourceTableName);
+
+    Table table = validationCatalog.loadTable(TableIdentifier.of(icebergNamespace, targetTableName));
+    SimpleDataUtil.assertTableRecords(table, ImmutableList.of(
+        SimpleDataUtil.createRecord(1, "aaa"),
+        SimpleDataUtil.createRecord(1, "bbb"),
+        SimpleDataUtil.createRecord(1, "ccc"),
+        SimpleDataUtil.createRecord(2, "aaa"),
+        SimpleDataUtil.createRecord(2, "bbb"),
+        SimpleDataUtil.createRecord(2, "ccc"),
+        SimpleDataUtil.createRecord(3, "aaa"),
+        SimpleDataUtil.createRecord(3, "bbb"),
+        SimpleDataUtil.createRecord(3, "ccc")
+    ));
+
+    Assert.assertEquals("There should be only 1 file for partition 'aaa'", 1, partitionFiles(table, "aaa"));
+    Assert.assertEquals("There should be only 1 file for partition 'bbb'", 1, partitionFiles(table, "bbb"));
+    Assert.assertEquals("There should be only 1 file for partition 'ccc'", 1, partitionFiles(table, "ccc"));
+
+    sql("DROP TABLE IF EXISTS %s.%s", flinkDatabase, sourceTableName);
+    sql("DROP TABLE IF EXISTS %s.%s", flinkDatabase, targetTableName);
+  }
+
+  // TODO replace this method with the following one.
+  private List<Path> partitionFiles(String table, String partition) throws IOException {
+    String databasePath = Joiner.on("/").join(baseNamespace.levels()) + "/" + DATABASE;
+    if (!isHadoopCatalog) {
+      databasePath = databasePath + ".db";
+    }
+    Path dir = Paths.get(warehouseRoot(), databasePath, table, "data", String.format("data=%s", partition));
+    return Files.list(dir)
+        .filter(p -> !p.toString().endsWith(".crc"))
+        .collect(Collectors.toList());
+  }
+
+  private int partitionFiles(Table table, String partition) {
+    return TestFlinkIcebergSink.partitionFiles(table, partition);
   }
 }

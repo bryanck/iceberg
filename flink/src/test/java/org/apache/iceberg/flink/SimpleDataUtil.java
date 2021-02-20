@@ -37,6 +37,7 @@ import org.apache.iceberg.DataFiles;
 import org.apache.iceberg.DeleteFile;
 import org.apache.iceberg.FileFormat;
 import org.apache.iceberg.FileScanTask;
+import org.apache.iceberg.Files;
 import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.Schema;
 import org.apache.iceberg.Table;
@@ -47,7 +48,6 @@ import org.apache.iceberg.deletes.EqualityDeleteWriter;
 import org.apache.iceberg.deletes.PositionDeleteWriter;
 import org.apache.iceberg.encryption.EncryptedOutputFile;
 import org.apache.iceberg.flink.sink.FlinkAppenderFactory;
-import org.apache.iceberg.hadoop.HadoopInputFile;
 import org.apache.iceberg.hadoop.HadoopTables;
 import org.apache.iceberg.io.CloseableIterable;
 import org.apache.iceberg.io.FileAppender;
@@ -120,10 +120,10 @@ public class SimpleDataUtil {
     return GenericRowData.ofKind(RowKind.UPDATE_AFTER, id, StringData.fromString(data));
   }
 
-  public static DataFile writeFile(Schema schema, PartitionSpec spec, Configuration conf,
-                                   String location, String filename, List<RowData> rows)
+  public static DataFile writeFile(Schema schema, PartitionSpec spec, String location, String filename,
+                                   List<RowData> rows)
       throws IOException {
-    Path path = new Path(location, filename);
+    String fullPath = String.format("%s/%s", location, filename);
     FileFormat fileFormat = FileFormat.fromFileName(filename);
     Preconditions.checkNotNull(fileFormat, "Cannot determine format for file: %s", filename);
 
@@ -131,13 +131,13 @@ public class SimpleDataUtil {
     FileAppenderFactory<RowData> appenderFactory =
         new FlinkAppenderFactory(schema, flinkSchema, ImmutableMap.of(), spec);
 
-    FileAppender<RowData> appender = appenderFactory.newAppender(fromPath(path, conf), fileFormat);
+    FileAppender<RowData> appender = appenderFactory.newAppender(Files.localOutput(fullPath), fileFormat);
     try (FileAppender<RowData> closeableAppender = appender) {
       closeableAppender.addAll(rows);
     }
 
     return DataFiles.builder(spec)
-        .withInputFile(HadoopInputFile.fromPath(path, conf))
+        .withInputFile(Files.localInput(fullPath))
         .withMetrics(appender.metrics())
         .build();
   }

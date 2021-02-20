@@ -30,6 +30,7 @@ import org.apache.flink.core.io.SimpleVersionedSerialization;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.table.data.RowData;
 import org.apache.hadoop.conf.Configuration;
+import org.apache.iceberg.ContentFile;
 import org.apache.iceberg.DataFile;
 import org.apache.iceberg.DeleteFile;
 import org.apache.iceberg.FileFormat;
@@ -54,8 +55,6 @@ import org.junit.rules.TemporaryFolder;
 import static org.apache.iceberg.flink.sink.ManifestOutputFileFactory.FLINK_MANIFEST_LOCATION;
 
 public class TestFlinkManifest {
-  private static final Configuration CONF = new Configuration();
-
   @Rule
   public TemporaryFolder tempFolder = new TemporaryFolder();
 
@@ -224,7 +223,7 @@ public class TestFlinkManifest {
   }
 
   private DataFile writeDataFile(String filename, List<RowData> rows) throws IOException {
-    return SimpleDataUtil.writeFile(table.schema(), table.spec(), CONF,
+    return SimpleDataUtil.writeFile(table.schema(), table.spec(),
         tablePath, FileFormat.PARQUET.addExtension(filename), rows);
   }
 

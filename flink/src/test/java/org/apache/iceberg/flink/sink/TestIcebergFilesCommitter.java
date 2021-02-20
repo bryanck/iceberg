@@ -39,7 +39,6 @@ import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.operators.StreamOperatorParameters;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.table.data.RowData;
-import org.apache.hadoop.conf.Configuration;
 import org.apache.iceberg.AssertHelpers;
 import org.apache.iceberg.DataFile;
 import org.apache.iceberg.DeleteFile;
@@ -72,8 +71,6 @@ import static org.apache.iceberg.flink.sink.ManifestOutputFileFactory.FLINK_MANI
 
 @RunWith(Parameterized.class)
 public class TestIcebergFilesCommitter extends TableTestBase {
-  private static final Configuration CONF = new Configuration();
-
   private String tablePath;
   private File flinkManifestFolder;
 
@@ -828,7 +825,7 @@ public class TestIcebergFilesCommitter extends TableTestBase {
   }
 
   private DataFile writeDataFile(String filename, List<RowData> rows) throws IOException {
-    return SimpleDataUtil.writeFile(table.schema(), table.spec(), CONF, tablePath, format.addExtension(filename), rows);
+    return SimpleDataUtil.writeFile(table.schema(), table.spec(), tablePath, format.addExtension(filename), rows);
   }
 
   private void assertMaxCommittedCheckpointId(JobID jobID, long expectedId) {

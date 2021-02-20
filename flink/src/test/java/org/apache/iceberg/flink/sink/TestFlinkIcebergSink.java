@@ -21,6 +21,7 @@ package org.apache.iceberg.flink.sink;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -37,6 +38,7 @@ import org.apache.flink.types.Row;
 import org.apache.iceberg.AssertHelpers;
 import org.apache.iceberg.DistributionMode;
 import org.apache.iceberg.FileFormat;
+import org.apache.iceberg.FileScanTask;
 import org.apache.iceberg.Table;
 import org.apache.iceberg.TableProperties;
 import org.apache.iceberg.flink.MiniClusterResource;
@@ -44,6 +46,8 @@ import org.apache.iceberg.flink.SimpleDataUtil;
 import org.apache.iceberg.flink.TableLoader;
 import org.apache.iceberg.flink.source.BoundedTestSource;
 import org.apache.iceberg.flink.util.FlinkCompatibilityUtil;
+import org.apache.iceberg.io.CloseableIterable;
+import org.apache.iceberg.relocated.com.google.common.collect.ImmutableList;
 import org.apache.iceberg.relocated.com.google.common.collect.ImmutableMap;
 import org.apache.iceberg.relocated.com.google.common.collect.Lists;
 import org.junit.Assert;
@@ -152,7 +156,8 @@ public class TestFlinkIcebergSink {
     SimpleDataUtil.assertTableRows(tablePath, convertToRowData(rows));
   }
 
-  private void testWriteRow(TableSchema tableSchema, DistributionMode distributionMode) throws Exception {
+  private void testWriteRow(TableSchema tableSchema, DistributionMode distributionMode, boolean autoCompact)
+      throws Exception {
     List<Row> rows = Lists.newArrayList(
         Row.of(1, "aaa"),
         Row.of(1, "bbb"),
@@ -186,12 +191,12 @@ public class TestFlinkIcebergSink {
 
   @Test
   public void testWriteRow() throws Exception {
-    testWriteRow(null, DistributionMode.NONE);
+    testWriteRow(null, DistributionMode.NONE, false);
   }
 
   @Test
   public void testWriteRowWithTableSchema() throws Exception {
-    testWriteRow(SimpleDataUtil.FLINK_SCHEMA, DistributionMode.NONE);
+    testWriteRow(SimpleDataUtil.FLINK_SCHEMA, DistributionMode.NONE, false);
   }
 
   @Test
@@ -200,7 +205,7 @@ public class TestFlinkIcebergSink {
         .set(TableProperties.WRITE_DISTRIBUTION_MODE, DistributionMode.HASH.modeName())
         .commit();
 
-    testWriteRow(null, DistributionMode.NONE);
+    testWriteRow(null, DistributionMode.NONE, false);
 
     if (parallelism > 1) {
       if (partitioned) {
@@ -219,7 +224,7 @@ public class TestFlinkIcebergSink {
     AssertHelpers.assertThrows("Does not support range distribution-mode now.",
         IllegalArgumentException.class, "Flink does not support 'range' write distribution mode now.",
         () -> {
-          testWriteRow(null, DistributionMode.RANGE);
+          testWriteRow(null, DistributionMode.RANGE, false);
           return null;
         });
   }
@@ -230,7 +235,7 @@ public class TestFlinkIcebergSink {
         .set(TableProperties.WRITE_DISTRIBUTION_MODE, DistributionMode.HASH.modeName())
         .commit();
 
-    testWriteRow(null, null);
+    testWriteRow(null, null, false);
 
     if (partitioned) {
       Assert.assertEquals("There should be only 1 data file in partition 'aaa'", 1, partitionFiles("aaa"));
@@ -241,7 +246,7 @@ public class TestFlinkIcebergSink {
 
   @Test
   public void testPartitionWriteMode() throws Exception {
-    testWriteRow(null, DistributionMode.HASH);
+    testWriteRow(null, DistributionMode.HASH, false);
     if (partitioned) {
       Assert.assertEquals("There should be only 1 data file in partition 'aaa'", 1, partitionFiles("aaa"));
       Assert.assertEquals("There should be only 1 data file in partition 'bbb'", 1, partitionFiles("bbb"));
@@ -251,11 +256,78 @@ public class TestFlinkIcebergSink {
 
   @Test
   public void testShuffleByPartitionWithSchema() throws Exception {
-    testWriteRow(SimpleDataUtil.FLINK_SCHEMA, DistributionMode.HASH);
+    testWriteRow(SimpleDataUtil.FLINK_SCHEMA, DistributionMode.HASH, false);
     if (partitioned) {
       Assert.assertEquals("There should be only 1 data file in partition 'aaa'", 1, partitionFiles("aaa"));
       Assert.assertEquals("There should be only 1 data file in partition 'bbb'", 1, partitionFiles("bbb"));
       Assert.assertEquals("There should be only 1 data file in partition 'ccc'", 1, partitionFiles("ccc"));
+    }
+  }
+
+  @Test
+  public void testAutoCompact() throws Exception {
+    List<Row> checkpoint1 = Lists.newArrayList(
+        Row.of(1, "aaa"),
+        Row.of(1, "bbb"),
+        Row.of(1, "ccc"),
+        Row.of(2, "aaa"),
+        Row.of(2, "bbb"),
+        Row.of(2, "ccc"),
+        Row.of(3, "aaa"),
+        Row.of(3, "bbb"),
+        Row.of(3, "ccc")
+    );
+    List<Row> checkpoint2 = ImmutableList.of();
+
+    List<List<Row>> inputRows = ImmutableList.of(checkpoint1, checkpoint2);
+    DataStream<Row> dataStream = env.addSource(new BoundedTestSource<>(inputRows), ROW_TYPE_INFO);
+
+    FlinkSink.forRow(dataStream, SimpleDataUtil.FLINK_SCHEMA)
+        .table(table)
+        .tableLoader(tableLoader)
+        .writeParallelism(parallelism)
+        .autoCompact(true)
+        .build();
+
+    // Execute the program.
+    env.execute("Test Iceberg DataStream.");
+
+    SimpleDataUtil.assertTableRows(tablePath, convertToRowData(checkpoint1));
+
+    if (partitioned) {
+      Assert.assertEquals("There should be only 1 data file in partition 'aaa'", 1, partitionFiles(table, "aaa"));
+      Assert.assertEquals("There should be only 1 data file in partition 'bbb'", 1, partitionFiles(table, "bbb"));
+      Assert.assertEquals("There should be only 1 data file in partition 'ccc'", 1, partitionFiles(table, "ccc"));
+    } else {
+      Assert.assertEquals("There should be only 1 data file in iceberg table", 1, unpartitionFiles(table));
+    }
+  }
+
+  // TODO remove the similar partitionFiles(partition) methods.
+  public static int partitionFiles(Table icebergTable, String partitionValue) {
+    icebergTable.refresh();
+    int fileSize = 0;
+    try (CloseableIterable<FileScanTask> tasks = icebergTable.newScan().planFiles()) {
+      for (FileScanTask task : tasks) {
+        String actual = task.file().partition().get(0, String.class);
+
+        if (partitionValue.equals(actual)) {
+          fileSize += 1;
+        }
+      }
+      return fileSize;
+
+    } catch (IOException e) {
+      throw new UncheckedIOException(e);
+    }
+  }
+
+  private static int unpartitionFiles(Table icebergTable) {
+    icebergTable.refresh();
+    try (CloseableIterable<FileScanTask> tasks = icebergTable.newScan().planFiles()) {
+      return Lists.newArrayList(tasks).size();
+    } catch (IOException e) {
+      throw new UncheckedIOException(e);
     }
   }
 }

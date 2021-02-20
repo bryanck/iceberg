@@ -1065,11 +1065,8 @@ project(':iceberg-spark3-runtime') {
     compile project(':iceberg-spark3')
     compile project(':iceberg-spark3-extensions')
     compile project(':iceberg-aws')
-<<<<<<< HEAD
-=======
     compile project(':iceberg-aliyun')
     compile 'org.apache.spark:spark-hive_2.11'
->>>>>>> Aliyun: Introduce OSS service
     compile(project(':iceberg-nessie')) {
       exclude group: 'com.google.code.findbugs', module: 'jsr305'
     }

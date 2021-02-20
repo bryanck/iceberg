@@ -19,8 +19,13 @@
 
 package org.apache.iceberg.flink.sink;
 
+import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.util.List;
 import org.apache.iceberg.ManifestFile;
+import org.apache.iceberg.io.FileIO;
+import org.apache.iceberg.io.WriteResult;
+import org.apache.iceberg.relocated.com.google.common.base.MoreObjects;
 import org.apache.iceberg.relocated.com.google.common.base.Preconditions;
 import org.apache.iceberg.relocated.com.google.common.collect.Lists;
 
@@ -31,6 +36,8 @@ class DeltaManifests {
   private final ManifestFile dataManifest;
   private final ManifestFile deleteManifest;
   private final CharSequence[] referencedDataFiles;
+
+  private WriteResult result = null;
 
   DeltaManifests(ManifestFile dataManifest, ManifestFile deleteManifest) {
     this(dataManifest, deleteManifest, EMPTY_REF_DATA_FILES);
@@ -67,5 +74,25 @@ class DeltaManifests {
     }
 
     return manifests;
+  }
+
+  WriteResult writeResult(FileIO io) {
+    if (result == null) {
+      try {
+        result = FlinkManifestUtil.readCompletedFiles(this, io);
+      } catch (IOException e) {
+        throw new UncheckedIOException(e);
+      }
+    }
+
+    return result;
+  }
+
+  @Override
+  public String toString() {
+    return MoreObjects.toStringHelper(DeltaManifests.class)
+        .add("dataManifests", dataManifest)
+        .add("deleteManifests", deleteManifest)
+        .toString();
   }
 }
