@@ -68,24 +68,3 @@ tarball=$tag.tar.gz
 # archive (identical hashes) using the scm tag
 git archive $release_hash --worktree-attributes --prefix $tag/ -o $tarball
 
-# sign the archive
-gpg --armor --output ${tarball}.asc --detach-sig $tarball
-sha512sum $tarball > ${tarball}.sha512
-
-# check out the Iceberg RC folder
-svn co --depth=empty https://dist.apache.org/repos/dist/dev/iceberg tmp
-
-# add the release candidate for the tag
-mkdir -p tmp/$tagrc
-cp ${tarball}* tmp/$tagrc
-svn add tmp/$tagrc
-svn ci -m "Apache Iceberg $version RC${rc}" tmp/$tagrc
-
-# clean up
-rm -rf tmp
-
-echo "Success! The release candidate is available here:"
-echo "  https://dist.apache.org/repos/dist/dev/iceberg/$tagrc"
-echo ""
-echo "Commit SHA1: $release_hash"
-
