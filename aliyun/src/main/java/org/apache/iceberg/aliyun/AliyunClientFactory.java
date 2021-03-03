@@ -19,6 +19,7 @@
 
 package org.apache.iceberg.aliyun;
 
+import com.aliyun.datalake20200710.Client;
 import com.aliyun.oss.OSS;
 import java.io.Serializable;
 import java.util.Map;
@@ -35,6 +36,13 @@ public interface AliyunClientFactory extends Serializable {
    * @return oss client.
    */
   OSS oss();
+
+  /**
+   * Create an aliyun data lake format cilent to manage the iceberg catalog.
+   *
+   * @return aliyun data lake format client.
+   */
+  Client dlfClient();
 
   /**
    * Initialize Aliyun client factory from catalog properties.

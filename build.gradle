@@ -65,6 +65,8 @@ allprojects {
     mavenLocal()
     maven { url "http://mvnrepo.alibaba-inc.com/nexus/content/repositories/snapshots" }
     maven { url "http://mvnrepo.alibaba-inc.com/nexus/content/repositories/releases" }
+    maven { url "http://mvnrepo.alibaba-inc.com/nexus/service/local/repositories/snapshots/content" }
+    maven { url "http://mvnrepo.alibaba-inc.com/nexus/service/local/repositories/thirdparty/content" }
   }
 }
 
@@ -263,6 +265,7 @@ project(':iceberg-aliyun') {
     compile project(':iceberg-api')
     compile project(':iceberg-core')
 
+    compileOnly 'com.aliyun:aliyun-java-sdk-dlf-shaded'
     compileOnly 'com.aliyun.oss:aliyun-sdk-oss'
 
     compileOnly("org.apache.hadoop:hadoop-common") {

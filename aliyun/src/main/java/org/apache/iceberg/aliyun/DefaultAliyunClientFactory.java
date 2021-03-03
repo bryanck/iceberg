@@ -19,12 +19,16 @@
 
 package org.apache.iceberg.aliyun;
 
+import com.aliyun.datalake20200710.Client;
 import com.aliyun.oss.OSS;
 import com.aliyun.oss.OSSClientBuilder;
+import com.aliyun.teaopenapi.models.Config;
 import java.util.Map;
 import org.apache.iceberg.relocated.com.google.common.base.Preconditions;
 
 public class DefaultAliyunClientFactory implements AliyunClientFactory {
+
+  private static final String DLF_AUTH_TYPE = "access_key";
 
   private AliyunProperties aliyunProperties;
 
@@ -35,8 +39,27 @@ public class DefaultAliyunClientFactory implements AliyunClientFactory {
 
     return new OSSClientBuilder().build(
         aliyunProperties.ossEndpoint(),
-        aliyunProperties.ossAccessKeyId(),
-        aliyunProperties.ossAccessKeySecret());
+        aliyunProperties.accessKeyId(),
+        aliyunProperties.accessKeySecret());
+  }
+
+  @Override
+  public Client dlfClient() {
+    Preconditions.checkNotNull(aliyunProperties,
+        "Cannot create aliyun DLF client before initializing the AliyunClientFactory.");
+
+    Config authConfig = new Config();
+    authConfig.setAccessKeyId(aliyunProperties.accessKeyId());
+    authConfig.setAccessKeySecret(aliyunProperties.accessKeySecret());
+    authConfig.setType(DLF_AUTH_TYPE);
+    authConfig.setEndpoint(aliyunProperties.dlfEndpoint());
+    authConfig.setRegionId(aliyunProperties.dlfRegionId());
+
+    try {
+      return new Client(authConfig);
+    } catch (Exception e) {
+      throw new RuntimeException("Failed to initialize the DLF client", e);
+    }
   }
 
   @Override

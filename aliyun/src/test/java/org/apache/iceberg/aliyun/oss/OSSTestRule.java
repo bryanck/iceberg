@@ -21,6 +21,7 @@ package org.apache.iceberg.aliyun.oss;
 
 import com.aliyun.oss.OSS;
 import java.util.UUID;
+import org.apache.iceberg.aliyun.AliyunTestUtility;
 import org.apache.iceberg.aliyun.oss.mock.OSSMockRule;
 import org.apache.iceberg.common.DynConstructors;
 import org.junit.rules.TestRule;
@@ -33,8 +34,6 @@ import org.springframework.util.StringUtils;
 public interface OSSTestRule extends TestRule {
   Logger LOG = LoggerFactory.getLogger(OSSTestRule.class);
   UUID RANDOM_UUID = java.util.UUID.randomUUID();
-
-  String OSS_TEST_RULE_CLASS_IMPL = "OSS_TEST_RULE_CLASS_IMPL";
 
   /**
    * Start the Aliyun Object storage services application that the OSS client could connect to.
@@ -96,7 +95,7 @@ public interface OSSTestRule extends TestRule {
   }
 
   static OSSTestRule initialize() {
-    String implClass = System.getenv(OSSIntegrationTestRule.OSS_TEST_RULE_CLASS_IMPL);
+    String implClass = AliyunTestUtility.testOssTestRuleClass();
 
     LOG.info("The initializing OSSTestRule implementation is: {}", implClass);
 

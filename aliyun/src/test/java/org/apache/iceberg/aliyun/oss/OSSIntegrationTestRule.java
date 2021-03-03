@@ -25,27 +25,13 @@ import com.aliyun.oss.model.ListObjectsRequest;
 import com.aliyun.oss.model.OSSObjectSummary;
 import com.aliyun.oss.model.ObjectListing;
 import java.util.UUID;
+import org.apache.iceberg.aliyun.AliyunTestUtility;
 import org.apache.iceberg.relocated.com.google.common.base.Preconditions;
 
 /**
- * It's used for integration test. Add those environment variables for integration testing.
- * <pre>
- * export OSS_TEST_RULE_CLASS_IMPL=org.apache.iceberg.aliyun.oss.OSSIntegrationTestRule
- * export OSS_TEST_ENDPOINT=${your-oss-endpoint}
- * export OSS_TEST_ACCESS_KEY=${your-oss-access-key}
- * export OSS_TEST_ACCESS_SECRET=${your-oss-access-secret}
- * export OSS_TEST_BUCKET_NAME=${your-oss-bucket-name}
- * export OSS_TEST_KEY_PREFIX=${your-oss-object-key-prefix}
- * </pre>
+ * It's used for integration test.
  */
 public class OSSIntegrationTestRule implements OSSTestRule {
-
-  private static final String OSS_TEST_ENDPOINT = "OSS_TEST_ENDPOINT";
-  private static final String OSS_TEST_ACCESS_KEY = "OSS_TEST_ACCESS_KEY";
-  private static final String OSS_TEST_ACCESS_SECRET = "OSS_TEST_ACCESS_SECRET";
-  private static final String OSS_TEST_BUCKET_NAME = "OSS_TEST_BUCKET_NAME";
-  private static final String OSS_TEST_KEY_PREFIX = "OSS_TEST_KEY_PREFIX";
-
   private String endpoint;
   private String accessKey;
   private String accessSecret;
@@ -56,19 +42,11 @@ public class OSSIntegrationTestRule implements OSSTestRule {
 
   @Override
   public void start() {
-    endpoint = System.getenv(OSS_TEST_ENDPOINT);
-    Preconditions.checkNotNull(endpoint, "Does not set '%s' environment variable", OSS_TEST_ENDPOINT);
-
-    accessKey = System.getenv(OSS_TEST_ACCESS_KEY);
-    Preconditions.checkNotNull(accessKey, "Does not set '%s' environment variable", OSS_TEST_ACCESS_KEY);
-
-    accessSecret = System.getenv(OSS_TEST_ACCESS_SECRET);
-    Preconditions.checkNotNull(accessSecret, "Does not set '%s' environment variable", OSS_TEST_ACCESS_SECRET);
-
-    testBucketName = System.getenv(OSS_TEST_BUCKET_NAME);
-    Preconditions.checkNotNull(testBucketName, "Does not set '%s' environment variable", OSS_TEST_BUCKET_NAME);
-
-    keyPrefix = System.getenv(OSS_TEST_KEY_PREFIX);
+    endpoint = AliyunTestUtility.testOssEndpoint();
+    accessKey = AliyunTestUtility.testAccessKeyId();
+    accessSecret = AliyunTestUtility.testAccessKeySecret();
+    testBucketName = AliyunTestUtility.testBucketName();
+    keyPrefix = AliyunTestUtility.testOssKeyPrefix();
     if (keyPrefix == null) {
       keyPrefix = String.format("iceberg-oss-testing-%s", UUID.randomUUID());
     }

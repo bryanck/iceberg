@@ -36,23 +36,23 @@ public class AliyunProperties implements Serializable {
   public static final String OSS_ENDPOINT = "oss.endpoint";
 
   /**
-   * OSS uses an AccessKey pair, which includes an AccessKey ID and an AccessKey secret to implement symmetric
+   * Aliyun uses an AccessKey pair, which includes an AccessKey ID and an AccessKey secret to implement symmetric
    * encryption and verify the identity of a requester. The AccessKey ID is used to identify a user.
    * <p>
    * For more information about how to obtain an AccessKey pair, see:
    * https://www.alibabacloud.com/help/doc-detail/53045.htm
    */
-  public static final String OSS_ACCESS_KEY_ID = "oss.access.key.id";
+  public static final String ACCESS_KEY_ID = "access.key.id";
 
   /**
-   * OSS uses an AccessKey pair, which includes an AccessKey ID and an AccessKey secret to implement symmetric
+   * Aliyun uses an AccessKey pair, which includes an AccessKey ID and an AccessKey secret to implement symmetric
    * encryption and verify the identity of a requester.  The AccessKey secret is used to encrypt and verify the
    * signature string.
    * <p>
    * For more information about how to obtain an AccessKey pair, see:
    * https://www.alibabacloud.com/help/doc-detail/53045.htm
    */
-  public static final String OSS_ACCESS_KEY_SECRET = "oss.access.key.secret";
+  public static final String ACCESS_KEY_SECRET = "access.key.secret";
 
   /**
    * Number of threads to use for uploading parts to OSS (shared pool across all output streams),
@@ -84,13 +84,38 @@ public class AliyunProperties implements Serializable {
   public static final String OSS_MULTIPART_THRESHOLD_SIZE = "oss.multipart.threshold.size-bytes";
   public static final long OSS_MULTIPART_THRESHOLD_SIZE_DEFAULT = 5 * 1024 * 1024 * 1024L;
 
+  /**
+   * The ID of the Data Lake Format where the tables reside.
+   * If none is provided, DLF automatically uses the caller's aliyun account ID by default.
+   * <p>
+   * For more details, see https://help.aliyun.com/document_detail/197150.html
+   */
+  public static final String DLF_CATALOG_ID = "dlf.catalog-id";
+
+  /**
+   * The endpoint of Data Lake Format services.
+   * <p>
+   * For more details, see https://help.aliyun.com/document_detail/197608.html
+   */
+  public static final String DLF_ENDPOINT = "dlf.endpoint";
+
+  /**
+   * The region identifier where Data Lake Format services are located.
+   * <p>
+   * For more details, see https://help.aliyun.com/document_detail/197608.html
+   */
+  public static final String DLF_REGION_ID = "dlf.region-id";
+
   private final String ossEndpoint;
-  private final String ossAccessKeyId;
-  private final String ossAccessKeySecret;
+  private final String accessKeyId;
+  private final String accessKeySecret;
   private final int ossMultipartUploadThreads;
   private final long ossMultiPartSize;
   private final String ossStagingDirectory;
   private final long ossMultipartThresholdSize;
+  private final String dlfCatalogId;
+  private final String dlfEndpoint;
+  private final String dlfRegionId;
 
   public AliyunProperties() {
     this(ImmutableMap.of());
@@ -101,8 +126,8 @@ public class AliyunProperties implements Serializable {
 
     // OSS endpoint, accessKeyId, accessKeySecret.
     this.ossEndpoint = properties.get(OSS_ENDPOINT);
-    this.ossAccessKeyId = properties.get(OSS_ACCESS_KEY_ID);
-    this.ossAccessKeySecret = properties.get(OSS_ACCESS_KEY_SECRET);
+    this.accessKeyId = properties.get(ACCESS_KEY_ID);
+    this.accessKeySecret = properties.get(ACCESS_KEY_SECRET);
 
     // OSS multipart upload threads.
     this.ossMultipartUploadThreads = PropertyUtil.propertyAsInt(properties, OSS_MULTIPART_UPLOAD_THREADS,
@@ -133,18 +158,27 @@ public class AliyunProperties implements Serializable {
         "%s must be positive, the recommend value is 5GB.", OSS_MULTIPART_THRESHOLD_SIZE);
     Preconditions.checkArgument(ossMultipartThresholdSize >= ossMultiPartSize,
         "%s must be not less than %s (value: %s)", OSS_MULTIPART_THRESHOLD_SIZE, OSS_MULTIPART_SIZE, ossMultiPartSize);
+
+    // Data Lake Format catalog id.
+    this.dlfCatalogId = properties.get(DLF_CATALOG_ID);
+
+    // Data Lake Format endpoint address.
+    this.dlfEndpoint = properties.get(DLF_ENDPOINT);
+
+    // Data Lake Format region id.
+    this.dlfRegionId = properties.get(DLF_REGION_ID);
   }
 
   public String ossEndpoint() {
     return ossEndpoint;
   }
 
-  public String ossAccessKeyId() {
-    return ossAccessKeyId;
+  public String accessKeyId() {
+    return accessKeyId;
   }
 
-  public String ossAccessKeySecret() {
-    return ossAccessKeySecret;
+  public String accessKeySecret() {
+    return accessKeySecret;
   }
 
   public int ossMultipartUploadThreads() {
@@ -161,5 +195,20 @@ public class AliyunProperties implements Serializable {
 
   public long ossMultipartThresholdSize() {
     return ossMultipartThresholdSize;
+  }
+
+  public String dlfCatalogId() {
+    Preconditions.checkNotNull(dlfCatalogId, "Cannot set '%s' to be null.", DLF_CATALOG_ID);
+    return dlfCatalogId;
+  }
+
+  public String dlfEndpoint() {
+    Preconditions.checkNotNull(dlfEndpoint, "Cannot set '%s' to be null.", DLF_ENDPOINT);
+    return dlfEndpoint;
+  }
+
+  public String dlfRegionId() {
+    Preconditions.checkNotNull(dlfRegionId, "Cannot set '%s' to be null.", DLF_REGION_ID);
+    return dlfRegionId;
   }
 }
