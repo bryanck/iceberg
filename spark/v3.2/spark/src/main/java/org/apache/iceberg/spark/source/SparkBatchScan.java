@@ -217,13 +217,20 @@ abstract class SparkBatchScan implements Scan, Batch, SupportsReportStatistics {
       return new Stats(0L, 0L);
     }
 
+    StructType tableSchema = SparkSchemaUtil.convert(table.schema());
+    double fractionOfSchemaScanned = ((double) readSchema().defaultSize()) / tableSchema.defaultSize();
+    fractionOfSchemaScanned = Math.min(fractionOfSchemaScanned, 1.0d);
+
     // estimate stats using snapshot summary only for partitioned tables (metadata tables are unpartitioned)
     if (!table.spec().isUnpartitioned() && filterExpressions.isEmpty()) {
       LOG.debug("using table metadata to estimate table statistics");
       long totalRecords = PropertyUtil.propertyAsLong(snapshot.summary(),
-          SnapshotSummary.TOTAL_RECORDS_PROP, Long.MAX_VALUE);
+              SnapshotSummary.TOTAL_RECORDS_PROP, Long.MAX_VALUE);
       long totalSize = PropertyUtil.propertyAsLong(snapshot.summary(),
-          SnapshotSummary.TOTAL_FILE_SIZE_PROP, Long.MAX_VALUE);
+              SnapshotSummary.TOTAL_FILE_SIZE_PROP, Long.MAX_VALUE);
+      if (totalSize != Long.MAX_VALUE) {
+        totalSize = Math.round(totalSize * fractionOfSchemaScanned);
+      }
       return new Stats(totalSize, totalRecords);
     }
 
@@ -234,10 +241,40 @@ abstract class SparkBatchScan implements Scan, Batch, SupportsReportStatistics {
       for (FileScanTask file : task.files()) {
         double fractionOfFileScanned = ((double) file.length()) / file.file().fileSizeInBytes();
         numRows += (fractionOfFileScanned * file.file().recordCount());
-        sizeInBytes += file.length();
+        sizeInBytes += (fractionOfSchemaScanned * file.length());
       }
     }
 
+    return new Stats(sizeInBytes, numRows);
+  }
+
+
+  protected Statistics estimateStatistics2(Snapshot snapshot) {
+    // its a fresh table, no data
+    if (snapshot == null) {
+      return new Stats(0L, 0L);
+    }
+
+    // estimate stats using snapshot summary only for partitioned tables (metadata tables are unpartitioned)
+    if (!table.spec().isUnpartitioned() && filterExpressions.isEmpty()) {
+      LOG.debug("using table metadata to estimate table statistics");
+      long totalRecords = PropertyUtil.propertyAsLong(snapshot.summary(),
+              SnapshotSummary.TOTAL_RECORDS_PROP, Long.MAX_VALUE);
+      return new Stats(
+              SparkSchemaUtil.estimateSize(readSchema(), totalRecords),
+              totalRecords);
+    }
+
+    long numRows = 0L;
+
+    for (CombinedScanTask task : tasks()) {
+      for (FileScanTask file : task.files()) {
+        double fractionOfFileScanned = ((double) file.length()) / file.file().fileSizeInBytes();
+        numRows += (fractionOfFileScanned * file.file().recordCount());
+      }
+    }
+
+    long sizeInBytes = SparkSchemaUtil.estimateSize(readSchema(), numRows);
     return new Stats(sizeInBytes, numRows);
   }
 
