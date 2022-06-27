@@ -222,20 +222,22 @@ abstract class SparkBatchScan implements Scan, Batch, SupportsReportStatistics {
       LOG.debug("using table metadata to estimate table statistics");
       long totalRecords = PropertyUtil.propertyAsLong(snapshot.summary(),
           SnapshotSummary.TOTAL_RECORDS_PROP, Long.MAX_VALUE);
-      return new Stats(
-          SparkSchemaUtil.estimateSize(readSchema(), totalRecords),
-          totalRecords);
+      long totalSize = PropertyUtil.propertyAsLong(snapshot.summary(),
+          SnapshotSummary.TOTAL_FILE_SIZE_PROP, Long.MAX_VALUE);
+      return new Stats(totalSize, totalRecords);
     }
 
     long numRows = 0L;
+    long sizeInBytes = 0L;
 
     for (CombinedScanTask task : tasks()) {
       for (FileScanTask file : task.files()) {
-        numRows += file.file().recordCount();
+        double fractionOfFileScanned = ((double) file.length()) / file.file().fileSizeInBytes();
+        numRows += (fractionOfFileScanned * file.file().recordCount());
+        sizeInBytes += file.length();
       }
     }
 
-    long sizeInBytes = SparkSchemaUtil.estimateSize(readSchema(), numRows);
     return new Stats(sizeInBytes, numRows);
   }
 

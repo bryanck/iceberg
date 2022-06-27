@@ -262,6 +262,7 @@ public class Parquet {
         ParquetProperties parquetProperties = ParquetProperties.builder()
             .withWriterVersion(writerVersion)
             .withPageSize(pageSize)
+            .withPageRowCountLimit(1_000_000)
             .withDictionaryPageSize(dictionaryPageSize)
             .build();
 
