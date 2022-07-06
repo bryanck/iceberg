@@ -273,6 +273,7 @@ public class Parquet {
         ParquetProperties parquetProperties = ParquetProperties.builder()
             .withWriterVersion(writerVersion)
             .withPageSize(pageSize)
+            .withPageRowCountLimit(10_000_000)
             .withDictionaryPageSize(dictionaryPageSize)
             .withMinRowCountForPageSizeCheck(rowGroupCheckMinRecordCount)
             .withMaxRowCountForPageSizeCheck(rowGroupCheckMaxRecordCount)
@@ -292,6 +293,7 @@ public class Parquet {
             .withWriteMode(writeMode)
             .withRowGroupSize(rowGroupSize)
             .withPageSize(pageSize)
+            .withPageRowCountLimit(10_000_000)
             .withDictionaryPageSize(dictionaryPageSize);
         // Todo: The following code needs to be improved in the bloom filter write path PR.
         for (Map.Entry<String, String> entry : config.entrySet()) {
