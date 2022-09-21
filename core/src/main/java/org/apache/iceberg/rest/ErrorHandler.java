@@ -16,9 +16,12 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.iceberg.rest.responses;
+package org.apache.iceberg.rest;
 
-import org.apache.iceberg.rest.RESTResponse;
+import java.util.function.Consumer;
+import org.apache.iceberg.rest.responses.ErrorResponse;
 
-/** Interface to mark a REST error response */
-public interface ErrorResponse extends RESTResponse {}
+public abstract class ErrorHandler implements Consumer<ErrorResponse> {
+
+  public abstract ErrorResponse parseResponse(int code, String json);
+}

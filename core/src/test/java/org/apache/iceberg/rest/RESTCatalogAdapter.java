@@ -45,6 +45,7 @@ import org.apache.iceberg.rest.requests.CreateTableRequest;
 import org.apache.iceberg.rest.requests.RenameTableRequest;
 import org.apache.iceberg.rest.requests.UpdateNamespacePropertiesRequest;
 import org.apache.iceberg.rest.requests.UpdateTableRequest;
+import org.apache.iceberg.rest.responses.CatalogErrorResponse;
 import org.apache.iceberg.rest.responses.ConfigResponse;
 import org.apache.iceberg.rest.responses.ErrorResponse;
 import org.apache.iceberg.rest.responses.OAuthTokenResponse;
@@ -308,7 +309,7 @@ public class RESTCatalogAdapter implements RESTClient {
       Class<T> responseType,
       Map<String, String> headers,
       Consumer<ErrorResponse> errorHandler) {
-    ErrorResponse.Builder errorBuilder = ErrorResponse.builder();
+    CatalogErrorResponse.Builder errorBuilder = CatalogErrorResponse.builder();
     Pair<Route, Map<String, String>> routeAndVars = Route.from(method, path);
     if (routeAndVars != null) {
       try {
@@ -419,7 +420,7 @@ public class RESTCatalogAdapter implements RESTClient {
   }
 
   public static void configureResponseFromException(
-      Exception exc, ErrorResponse.Builder errorBuilder) {
+      Exception exc, CatalogErrorResponse.Builder errorBuilder) {
     errorBuilder
         .responseCode(EXCEPTION_ERROR_CODES.getOrDefault(exc.getClass(), 500))
         .withType(exc.getClass().getSimpleName())

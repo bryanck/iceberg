@@ -21,15 +21,14 @@ package org.apache.iceberg.rest.responses;
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.databind.JsonNode;
 import java.io.IOException;
-import java.io.StringWriter;
 import java.io.UncheckedIOException;
 import java.util.List;
 import org.apache.iceberg.relocated.com.google.common.base.Preconditions;
 import org.apache.iceberg.util.JsonUtil;
 
-public class ErrorResponseParser {
+public class CatalogErrorResponseParser {
 
-  private ErrorResponseParser() {}
+  private CatalogErrorResponseParser() {}
 
   private static final String ERROR = "error";
   private static final String MESSAGE = "message";
@@ -37,27 +36,15 @@ public class ErrorResponseParser {
   private static final String CODE = "code";
   private static final String STACK = "stack";
 
-  public static String toJson(ErrorResponse errorResponse) {
+  public static String toJson(CatalogErrorResponse errorResponse) {
     return toJson(errorResponse, false);
   }
 
-  public static String toJson(ErrorResponse errorResponse, boolean pretty) {
-    try {
-      StringWriter writer = new StringWriter();
-      JsonGenerator generator = JsonUtil.factory().createGenerator(writer);
-      if (pretty) {
-        generator.useDefaultPrettyPrinter();
-      }
-      toJson(errorResponse, generator);
-      generator.flush();
-      return writer.toString();
-    } catch (IOException e) {
-      throw new UncheckedIOException(
-          String.format("Failed to write error response json for: %s", errorResponse), e);
-    }
+  public static String toJson(CatalogErrorResponse errorResponse, boolean pretty) {
+    return JsonUtil.generate(gen -> toJson(errorResponse, gen), pretty);
   }
 
-  public static void toJson(ErrorResponse errorResponse, JsonGenerator generator)
+  public static void toJson(CatalogErrorResponse errorResponse, JsonGenerator generator)
       throws IOException {
     generator.writeStartObject();
 
@@ -85,7 +72,7 @@ public class ErrorResponseParser {
    * @param json a JSON string of an ErrorResponse
    * @return an ErrorResponse object
    */
-  public static ErrorResponse fromJson(String json) {
+  public static CatalogErrorResponse fromJson(String json) {
     try {
       return fromJson(JsonUtil.mapper().readValue(json, JsonNode.class));
     } catch (IOException e) {
@@ -93,18 +80,17 @@ public class ErrorResponseParser {
     }
   }
 
-  public static ErrorResponse fromJson(JsonNode jsonNode) {
+  public static CatalogErrorResponse fromJson(JsonNode jsonNode) {
     Preconditions.checkArgument(
         jsonNode != null && jsonNode.isObject(),
         "Cannot parse error response from non-object value: %s",
         jsonNode);
-    Preconditions.checkArgument(jsonNode.has(ERROR), "Cannot parse missing field: error");
     JsonNode error = JsonUtil.get(ERROR, jsonNode);
     String message = JsonUtil.getStringOrNull(MESSAGE, error);
     String type = JsonUtil.getStringOrNull(TYPE, error);
     Integer code = JsonUtil.getIntOrNull(CODE, error);
     List<String> stack = JsonUtil.getStringListOrNull(STACK, error);
-    return ErrorResponse.builder()
+    return CatalogErrorResponse.builder()
         .withMessage(message)
         .withType(type)
         .responseCode(code)

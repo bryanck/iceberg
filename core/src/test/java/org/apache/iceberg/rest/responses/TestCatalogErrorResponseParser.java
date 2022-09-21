@@ -20,10 +20,11 @@ package org.apache.iceberg.rest.responses;
 
 import java.util.Arrays;
 import java.util.List;
+import org.assertj.core.api.Assertions;
 import org.junit.Assert;
 import org.junit.Test;
 
-public class TestErrorResponseParser {
+public class TestCatalogErrorResponseParser {
 
   @Test
   public void testErrorResponseToJson() {
@@ -33,11 +34,15 @@ public class TestErrorResponseParser {
     String errorModelJson =
         String.format("{\"message\":\"%s\",\"type\":\"%s\",\"code\":%d}", message, type, code);
     String json = "{\"error\":" + errorModelJson + "}";
-    ErrorResponse response =
-        ErrorResponse.builder().withMessage(message).withType(type).responseCode(code).build();
+    CatalogErrorResponse response =
+        CatalogErrorResponse.builder()
+            .withMessage(message)
+            .withType(type)
+            .responseCode(code)
+            .build();
     Assert.assertEquals(
         "Should be able to serialize an error response as json",
-        ErrorResponseParser.toJson(response),
+        CatalogErrorResponseParser.toJson(response),
         json);
   }
 
@@ -52,8 +57,8 @@ public class TestErrorResponseParser {
             "{\"message\":\"%s\",\"type\":\"%s\",\"code\":%d,\"stack\":[\"a\",\"b\"]}",
             message, type, code);
     String json = "{\"error\":" + errorModelJson + "}";
-    ErrorResponse response =
-        ErrorResponse.builder()
+    CatalogErrorResponse response =
+        CatalogErrorResponse.builder()
             .withMessage(message)
             .withType(type)
             .responseCode(code)
@@ -62,7 +67,7 @@ public class TestErrorResponseParser {
     Assert.assertEquals(
         "Should be able to serialize an error response as json",
         json,
-        ErrorResponseParser.toJson(response));
+        CatalogErrorResponseParser.toJson(response));
   }
 
   @Test
@@ -74,9 +79,13 @@ public class TestErrorResponseParser {
         String.format("{\"message\":\"%s\",\"type\":\"%s\",\"code\":%d}", message, type, code);
     String json = "{\"error\":" + errorModelJson + "}";
 
-    ErrorResponse expected =
-        ErrorResponse.builder().withMessage(message).withType(type).responseCode(code).build();
-    assertEquals(expected, ErrorResponseParser.fromJson(json));
+    CatalogErrorResponse expected =
+        CatalogErrorResponse.builder()
+            .withMessage(message)
+            .withType(type)
+            .responseCode(code)
+            .build();
+    assertEquals(expected, CatalogErrorResponseParser.fromJson(json));
   }
 
   @Test
@@ -91,14 +100,14 @@ public class TestErrorResponseParser {
             message, type, code);
     String json = "{\"error\":" + errorModelJson + "}";
 
-    ErrorResponse expected =
-        ErrorResponse.builder()
+    CatalogErrorResponse expected =
+        CatalogErrorResponse.builder()
             .withMessage(message)
             .withType(type)
             .responseCode(code)
             .withStackTrace(stack)
             .build();
-    assertEquals(expected, ErrorResponseParser.fromJson(json));
+    assertEquals(expected, CatalogErrorResponseParser.fromJson(json));
   }
 
   @Test
@@ -112,20 +121,20 @@ public class TestErrorResponseParser {
             "{\"message\":\"%s\",\"type\":\"%s\",\"code\":%d,\"stack\":null}", message, type, code);
     String json = "{\"error\":" + errorModelJson + "}";
 
-    ErrorResponse expected =
-        ErrorResponse.builder()
+    CatalogErrorResponse expected =
+        CatalogErrorResponse.builder()
             .withMessage(message)
             .withType(type)
             .responseCode(code)
             .withStackTrace(stack)
             .build();
-    assertEquals(expected, ErrorResponseParser.fromJson(json));
+    assertEquals(expected, CatalogErrorResponseParser.fromJson(json));
   }
 
-  public void assertEquals(ErrorResponse expected, ErrorResponse actual) {
-    Assert.assertEquals("Message should be equal", expected.message(), actual.message());
-    Assert.assertEquals("Type should be equal", expected.type(), actual.type());
-    Assert.assertEquals("Response code should be equal", expected.code(), actual.code());
-    Assert.assertEquals("Stack should be equal", expected.stack(), actual.stack());
+  public void assertEquals(CatalogErrorResponse expected, CatalogErrorResponse actual) {
+    Assertions.assertThat(actual.message()).isEqualTo(expected.message());
+    Assertions.assertThat(actual.type()).isEqualTo(expected.type());
+    Assertions.assertThat(actual.code()).isEqualTo(expected.code());
+    Assertions.assertThat(actual.stack()).isEqualTo(expected.stack());
   }
 }

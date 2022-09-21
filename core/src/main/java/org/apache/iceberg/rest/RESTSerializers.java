@@ -44,8 +44,10 @@ import org.apache.iceberg.catalog.TableIdentifierParser;
 import org.apache.iceberg.rest.auth.OAuth2Util;
 import org.apache.iceberg.rest.requests.UpdateRequirementParser;
 import org.apache.iceberg.rest.requests.UpdateTableRequest.UpdateRequirement;
-import org.apache.iceberg.rest.responses.ErrorResponse;
-import org.apache.iceberg.rest.responses.ErrorResponseParser;
+import org.apache.iceberg.rest.responses.CatalogErrorResponse;
+import org.apache.iceberg.rest.responses.CatalogErrorResponseParser;
+import org.apache.iceberg.rest.responses.OAuthErrorResponse;
+import org.apache.iceberg.rest.responses.OAuthErrorResponseParser;
 import org.apache.iceberg.rest.responses.OAuthTokenResponse;
 import org.apache.iceberg.util.JsonUtil;
 
@@ -56,8 +58,10 @@ public class RESTSerializers {
   public static void registerAll(ObjectMapper mapper) {
     SimpleModule module = new SimpleModule();
     module
-        .addSerializer(ErrorResponse.class, new ErrorResponseSerializer())
-        .addDeserializer(ErrorResponse.class, new ErrorResponseDeserializer())
+        .addSerializer(CatalogErrorResponse.class, new CatalogErrorResponseSerializer())
+        .addDeserializer(CatalogErrorResponse.class, new CatalogErrorResponseDeserializer())
+        .addSerializer(OAuthErrorResponse.class, new OAuthErrorResponseSerializer())
+        .addDeserializer(OAuthErrorResponse.class, new OAuthErrorResponseDeserializer())
         .addSerializer(TableIdentifier.class, new TableIdentifierSerializer())
         .addDeserializer(TableIdentifier.class, new TableIdentifierDeserializer())
         .addSerializer(Namespace.class, new NamespaceSerializer())
@@ -131,21 +135,40 @@ public class RESTSerializers {
     }
   }
 
-  public static class ErrorResponseDeserializer extends JsonDeserializer<ErrorResponse> {
+  public static class CatalogErrorResponseDeserializer
+      extends JsonDeserializer<CatalogErrorResponse> {
     @Override
-    public ErrorResponse deserialize(JsonParser p, DeserializationContext context)
+    public CatalogErrorResponse deserialize(JsonParser p, DeserializationContext context)
         throws IOException {
       JsonNode node = p.getCodec().readTree(p);
-      return ErrorResponseParser.fromJson(node);
+      return CatalogErrorResponseParser.fromJson(node);
     }
   }
 
-  public static class ErrorResponseSerializer extends JsonSerializer<ErrorResponse> {
+  public static class CatalogErrorResponseSerializer extends JsonSerializer<CatalogErrorResponse> {
     @Override
     public void serialize(
-        ErrorResponse errorResponse, JsonGenerator gen, SerializerProvider serializers)
+        CatalogErrorResponse errorResponse, JsonGenerator gen, SerializerProvider serializers)
         throws IOException {
-      ErrorResponseParser.toJson(errorResponse, gen);
+      CatalogErrorResponseParser.toJson(errorResponse, gen);
+    }
+  }
+
+  public static class OAuthErrorResponseDeserializer extends JsonDeserializer<OAuthErrorResponse> {
+    @Override
+    public OAuthErrorResponse deserialize(JsonParser p, DeserializationContext context)
+        throws IOException {
+      JsonNode node = p.getCodec().readTree(p);
+      return OAuthErrorResponseParser.fromJson(node);
+    }
+  }
+
+  public static class OAuthErrorResponseSerializer extends JsonSerializer<OAuthErrorResponse> {
+    @Override
+    public void serialize(
+        OAuthErrorResponse errorResponse, JsonGenerator gen, SerializerProvider serializers)
+        throws IOException {
+      OAuthErrorResponseParser.toJson(errorResponse, gen);
     }
   }
 
