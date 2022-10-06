@@ -25,10 +25,14 @@ import org.apache.iceberg.spark.SparkSessionCatalog
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.Strategy
 import org.apache.spark.sql.catalyst.InternalRow
+import org.apache.spark.sql.catalyst.expressions.And
+import org.apache.spark.sql.catalyst.expressions.DynamicPruning
 import org.apache.spark.sql.catalyst.expressions.Expression
 import org.apache.spark.sql.catalyst.expressions.GenericInternalRow
 import org.apache.spark.sql.catalyst.expressions.Literal
+import org.apache.spark.sql.catalyst.expressions.NamedExpression
 import org.apache.spark.sql.catalyst.expressions.PredicateHelper
+import org.apache.spark.sql.catalyst.planning.PhysicalOperation
 import org.apache.spark.sql.catalyst.plans.logical.AddPartitionField
 import org.apache.spark.sql.catalyst.plans.logical.Call
 import org.apache.spark.sql.catalyst.plans.logical.DeleteFromIcebergTable
@@ -45,6 +49,9 @@ import org.apache.spark.sql.catalyst.plans.logical.WriteDelta
 import org.apache.spark.sql.connector.catalog.Identifier
 import org.apache.spark.sql.connector.catalog.TableCatalog
 import org.apache.spark.sql.errors.QueryCompilationErrors
+import org.apache.spark.sql.execution.FilterExec
+import org.apache.spark.sql.execution.LeafExecNode
+import org.apache.spark.sql.execution.ProjectExec
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.datasources.DataSourceStrategy
 import scala.jdk.CollectionConverters._
@@ -110,7 +117,34 @@ case class ExtendedDataSourceV2Strategy(spark: SparkSession) extends Strategy wi
     case NoStatsUnaryNode(child) =>
       planLater(child) :: Nil
 
+    case PhysicalOperation(project, filters, relation: DataSourceV2ScanRelation) =>
+      // projection and filters were already pushed down in the optimizer.
+      // this uses PhysicalOperation to get the projection and ensure that if the batch scan does
+      // not support columnar, a projection is added to convert the rows to UnsafeRow.
+      val (runtimeFilters, postScanFilters) = filters.partition {
+        case _: DynamicPruning => true
+        case _ => false
+      }
+      val batchExec = ExtendedBatchScanExec(relation.output, relation.scan, runtimeFilters,
+        relation.keyGroupedPartitioning)
+      withProjectAndFilter(project, postScanFilters, batchExec, !batchExec.supportsColumnar) :: Nil
+
     case _ => Nil
+  }
+
+  private def withProjectAndFilter(
+                                    project: Seq[NamedExpression],
+                                    filters: Seq[Expression],
+                                    scan: LeafExecNode,
+                                    needsUnsafeConversion: Boolean): SparkPlan = {
+    val filterCondition = filters.reduceLeftOption(And)
+    val withFilter = filterCondition.map(FilterExec(_, scan)).getOrElse(scan)
+
+    if (withFilter.output != project || needsUnsafeConversion) {
+      ProjectExec(project, withFilter)
+    } else {
+      withFilter
+    }
   }
 
   private def buildInternalRow(exprs: Seq[Expression]): InternalRow = {
