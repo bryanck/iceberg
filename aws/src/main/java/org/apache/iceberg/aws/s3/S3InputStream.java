@@ -197,17 +197,22 @@ class S3InputStream extends SeekableInputStream implements RangeReadable {
 
   private void closeStream() throws IOException {
     if (stream != null) {
-      boolean eof;
       try {
-        eof = stream.read() == -1;
-      } catch (IOException e) {
-        eof = true;
-      }
+        boolean eos;
+        try {
+          eos = stream.read() == -1;
+        } catch (IOException e) {
+          eos = true;
+        }
 
-      if (stream instanceof Abortable && !eof) {
-        ((Abortable) stream).abort();
-      } else {
-        stream.close();
+        if (!eos && stream instanceof Abortable) {
+          ((Abortable) stream).abort();
+        } else {
+          stream.close();
+        }
+
+      } finally {
+        stream = null;
       }
     }
   }
