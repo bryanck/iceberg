@@ -36,6 +36,7 @@ import org.apache.iceberg.relocated.com.google.common.io.ByteStreams;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.core.sync.ResponseTransformer;
+import software.amazon.awssdk.http.Abortable;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 import software.amazon.awssdk.services.s3.model.NoSuchKeyException;
@@ -196,7 +197,18 @@ class S3InputStream extends SeekableInputStream implements RangeReadable {
 
   private void closeStream() throws IOException {
     if (stream != null) {
-      stream.close();
+      boolean eof;
+      try {
+        eof = stream.read() == -1;
+      } catch (IOException e) {
+        eof = true;
+      }
+
+      if (stream instanceof Abortable && !eof) {
+        ((Abortable) stream).abort();
+      } else {
+        stream.close();
+      }
     }
   }
 
