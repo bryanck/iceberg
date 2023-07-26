@@ -31,6 +31,12 @@ public class FileInfo {
   private final long createdAtMillis;
   private final Type type;
 
+  /** @deprecated will be removed in 1.5.0, the type should always be specified */
+  @Deprecated
+  public FileInfo(String location, long size, long createdAtMillis) {
+    this(location, size, createdAtMillis, Type.FILE);
+  }
+
   public FileInfo(String location, long size, long createdAtMillis, Type type) {
     this.location = location;
     this.size = size;
