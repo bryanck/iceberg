@@ -19,14 +19,23 @@
 package org.apache.iceberg.io;
 
 public class FileInfo {
+
+  public enum Type {
+    FILE,
+    DIRECTORY,
+    OTHER
+  }
+
   private final String location;
   private final long size;
   private final long createdAtMillis;
+  private final Type type;
 
-  public FileInfo(String location, long size, long createdAtMillis) {
+  public FileInfo(String location, long size, long createdAtMillis, Type type) {
     this.location = location;
     this.size = size;
     this.createdAtMillis = createdAtMillis;
+    this.type = type;
   }
 
   public String location() {
@@ -39,5 +48,9 @@ public class FileInfo {
 
   public long createdAtMillis() {
     return createdAtMillis;
+  }
+
+  public Type type() {
+    return type;
   }
 }

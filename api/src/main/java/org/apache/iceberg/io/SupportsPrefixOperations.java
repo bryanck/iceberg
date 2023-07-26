@@ -25,7 +25,8 @@ package org.apache.iceberg.io;
 public interface SupportsPrefixOperations extends FileIO {
 
   /**
-   * Return an iterable of all files under a prefix.
+   * Return an iterable of all files under a prefix. The list should NOT include directories or
+   * common prefixes.
    *
    * <p>Hierarchical file systems (e.g. HDFS) may impose additional restrictions like the prefix
    * must fully match a directory whereas key/value object stores may allow for arbitrary prefixes.
@@ -34,6 +35,20 @@ public interface SupportsPrefixOperations extends FileIO {
    * @return iterable of file information
    */
   Iterable<FileInfo> listPrefix(String prefix);
+
+  /**
+   * Return an iterable of all files under a prefix up to a given delimiter. This list should
+   * include directories and common prefixes.
+   *
+   * <p>Hierarchical file systems (e.g. HDFS) may impose additional restrictions like the prefix
+   * must fully match a directory whereas key/value object stores may allow for arbitrary prefixes.
+   * Also, hierarchical file systems generally will only support a delimiter of "/" or similar.
+   *
+   * @param prefix prefix to list
+   * @param delimiter delimiter to indicate hierarchy
+   * @return iterable of file information
+   */
+  Iterable<FileInfo> listPrefix(String prefix, String delimiter);
 
   /**
    * Delete all files under a prefix.

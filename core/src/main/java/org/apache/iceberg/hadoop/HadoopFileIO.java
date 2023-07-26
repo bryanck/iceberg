@@ -21,12 +21,14 @@ package org.apache.iceberg.hadoop;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.UncheckedIOException;
+import java.util.Arrays;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.RemoteIterator;
@@ -38,6 +40,7 @@ import org.apache.iceberg.io.InputFile;
 import org.apache.iceberg.io.OutputFile;
 import org.apache.iceberg.io.SupportsBulkOperations;
 import org.apache.iceberg.io.SupportsPrefixOperations;
+import org.apache.iceberg.relocated.com.google.common.base.Preconditions;
 import org.apache.iceberg.relocated.com.google.common.collect.ImmutableMap;
 import org.apache.iceberg.relocated.com.google.common.collect.Streams;
 import org.apache.iceberg.util.SerializableMap;
@@ -139,19 +142,48 @@ public class HadoopFileIO
 
     return () -> {
       try {
-        return Streams.stream(
-                new AdaptingIterator<>(fs.listFiles(prefixToList, true /* recursive */)))
-            .map(
-                fileStatus ->
-                    new FileInfo(
-                        fileStatus.getPath().toString(),
-                        fileStatus.getLen(),
-                        fileStatus.getModificationTime()))
+        // listFiles() doesn't include directories, which is what we want
+        return Streams.stream(new AdaptingIterator<>(fs.listFiles(prefixToList, true)))
+            .map(this::convertToFileInfo)
             .iterator();
       } catch (IOException e) {
         throw new UncheckedIOException(e);
       }
     };
+  }
+
+  @Override
+  public Iterable<FileInfo> listPrefix(String prefix, String delimiter) {
+    Preconditions.checkArgument(
+        "/".equals(delimiter), "Delimiter must be '/' for Hadoop file system");
+    Path prefixToList = new Path(prefix);
+    FileSystem fs = Util.getFs(prefixToList, hadoopConf.get());
+
+    return () -> {
+      try {
+        // listFiles() does include directories, which is what we want
+        return Arrays.stream(fs.listStatus(prefixToList)).map(this::convertToFileInfo).iterator();
+      } catch (IOException e) {
+        throw new UncheckedIOException(e);
+      }
+    };
+  }
+
+  private FileInfo convertToFileInfo(FileStatus fileStatus) {
+    return new FileInfo(
+        fileStatus.getPath().toString(),
+        fileStatus.getLen(),
+        fileStatus.getModificationTime(),
+        getFileType(fileStatus));
+  }
+
+  private FileInfo.Type getFileType(FileStatus fileStatus) {
+    if (fileStatus.isDirectory()) {
+      return FileInfo.Type.DIRECTORY;
+    } else if (fileStatus.isFile()) {
+      return FileInfo.Type.FILE;
+    }
+    return FileInfo.Type.OTHER;
   }
 
   @Override

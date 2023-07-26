@@ -28,6 +28,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import org.apache.iceberg.aws.AwsClientFactory;
 import org.apache.iceberg.aws.S3FileIOAwsClientFactories;
 import org.apache.iceberg.common.DynConstructors;
@@ -294,19 +295,50 @@ public class S3FileIO
 
   @Override
   public Iterable<FileInfo> listPrefix(String prefix) {
+    return internalListFiles(prefix, null);
+  }
+
+  @Override
+  public Iterable<FileInfo> listPrefix(String prefix, String delimiter) {
+    return internalListFiles(prefix, delimiter);
+  }
+
+  private Iterable<FileInfo> internalListFiles(String prefix, String delimiter) {
     S3URI s3uri = new S3URI(prefix, s3FileIOProperties.bucketToAccessPointMapping());
+
     ListObjectsV2Request request =
-        ListObjectsV2Request.builder().bucket(s3uri.bucket()).prefix(s3uri.key()).build();
+        ListObjectsV2Request.builder()
+            .bucket(s3uri.bucket())
+            .prefix(s3uri.key())
+            .delimiter(delimiter)
+            .build();
 
     return () ->
         client().listObjectsV2Paginator(request).stream()
-            .flatMap(r -> r.contents().stream())
-            .map(
-                o ->
-                    new FileInfo(
-                        String.format("%s://%s/%s", s3uri.scheme(), s3uri.bucket(), o.key()),
-                        o.size(),
-                        o.lastModified().toEpochMilli()))
+            .flatMap(
+                r -> {
+                  Stream<FileInfo> files =
+                      r.contents().stream()
+                          .map(
+                              o ->
+                                  new FileInfo(
+                                      String.format(
+                                          "%s://%s/%s", s3uri.scheme(), s3uri.bucket(), o.key()),
+                                      o.size(),
+                                      o.lastModified().toEpochMilli(),
+                                      FileInfo.Type.FILE));
+                  Stream<FileInfo> dirs =
+                      r.commonPrefixes().stream()
+                          .map(
+                              p ->
+                                  new FileInfo(
+                                      String.format(
+                                          "%s://%s/%s", s3uri.scheme(), s3uri.bucket(), p.prefix()),
+                                      0,
+                                      0,
+                                      FileInfo.Type.DIRECTORY));
+                  return Stream.concat(files, dirs);
+                })
             .iterator();
   }
 

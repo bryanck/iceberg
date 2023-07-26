@@ -21,10 +21,9 @@ package org.apache.iceberg.spark.actions;
 import static org.apache.iceberg.TableProperties.GC_ENABLED;
 import static org.apache.iceberg.TableProperties.GC_ENABLED_DEFAULT;
 
-import java.io.IOException;
 import java.io.Serializable;
-import java.io.UncheckedIOException;
 import java.net.URI;
+import java.nio.file.Paths;
 import java.sql.Timestamp;
 import java.util.Collections;
 import java.util.Iterator;
@@ -37,27 +36,25 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
-import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.FileStatus;
-import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.fs.PathFilter;
 import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.Table;
 import org.apache.iceberg.actions.DeleteOrphanFiles;
 import org.apache.iceberg.actions.ImmutableDeleteOrphanFiles;
 import org.apache.iceberg.exceptions.ValidationException;
-import org.apache.iceberg.hadoop.HiddenPathFilter;
 import org.apache.iceberg.io.BulkDeletionFailureException;
+import org.apache.iceberg.io.FileIO;
 import org.apache.iceberg.io.SupportsBulkOperations;
+import org.apache.iceberg.io.SupportsPrefixOperations;
 import org.apache.iceberg.relocated.com.google.common.annotations.VisibleForTesting;
 import org.apache.iceberg.relocated.com.google.common.base.Preconditions;
 import org.apache.iceberg.relocated.com.google.common.base.Strings;
 import org.apache.iceberg.relocated.com.google.common.collect.ImmutableMap;
+import org.apache.iceberg.relocated.com.google.common.collect.ImmutableSet;
 import org.apache.iceberg.relocated.com.google.common.collect.Iterators;
 import org.apache.iceberg.relocated.com.google.common.collect.Lists;
 import org.apache.iceberg.relocated.com.google.common.collect.Maps;
 import org.apache.iceberg.spark.JobGroupInfo;
+import org.apache.iceberg.spark.source.SerializableTableWithSize;
 import org.apache.iceberg.util.Pair;
 import org.apache.iceberg.util.PropertyUtil;
 import org.apache.iceberg.util.Tasks;
@@ -74,7 +71,6 @@ import org.apache.spark.sql.SparkSession;
 import org.apache.spark.sql.types.DataTypes;
 import org.apache.spark.sql.types.StructField;
 import org.apache.spark.sql.types.StructType;
-import org.apache.spark.util.SerializableConfiguration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import scala.Tuple2;
@@ -82,7 +78,8 @@ import scala.Tuple2;
 /**
  * An action that removes orphan metadata, data and delete files by listing a given location and
  * comparing the actual files in that location with content and metadata files referenced by all
- * valid snapshots. The location must be accessible for listing via the Hadoop {@link FileSystem}.
+ * valid snapshots. The location must be accessible for listing via the table's FileIO, which must
+ * implement {@link SupportsPrefixOperations}.
  *
  * <p>By default, this action cleans up the table location returned by {@link Table#location()} and
  * removes unreachable files that are older than 3 days using {@link Table#io()}. The behavior can
@@ -109,8 +106,8 @@ public class DeleteOrphanFilesSparkAction extends BaseSparkAction<DeleteOrphanFi
   private static final int MAX_DRIVER_LISTING_DIRECT_SUB_DIRS = 10;
   private static final int MAX_EXECUTOR_LISTING_DEPTH = 2000;
   private static final int MAX_EXECUTOR_LISTING_DIRECT_SUB_DIRS = Integer.MAX_VALUE;
+  private static final String PREFIX_DELIMITER = "/";
 
-  private final SerializableConfiguration hadoopConf;
   private final int listingParallelism;
   private final Table table;
   private Map<String, String> equalSchemes = flattenMap(EQUAL_SCHEMES_DEFAULT);
@@ -125,7 +122,6 @@ public class DeleteOrphanFilesSparkAction extends BaseSparkAction<DeleteOrphanFi
   DeleteOrphanFilesSparkAction(SparkSession spark, Table table) {
     super(spark);
 
-    this.hadoopConf = new SerializableConfiguration(spark.sessionState().newHadoopConf());
     this.listingParallelism = spark.sessionState().conf().parallelPartitionDiscoveryParallelism();
     this.table = table;
     this.location = table.location();
@@ -303,15 +299,17 @@ public class DeleteOrphanFilesSparkAction extends BaseSparkAction<DeleteOrphanFi
     List<String> subDirs = Lists.newArrayList();
     List<String> matchingFiles = Lists.newArrayList();
 
-    Predicate<FileStatus> predicate = file -> file.getModificationTime() < olderThanTimestamp;
-    PathFilter pathFilter = PartitionAwareHiddenPathFilter.forSpecs(table.specs());
+    Predicate<org.apache.iceberg.io.FileInfo> predicate =
+        file -> file.createdAtMillis() < olderThanTimestamp;
+    PartitionAwareHiddenPathFilter pathFilter =
+        PartitionAwareHiddenPathFilter.forSpecs(table.specs());
 
     // list at most MAX_DRIVER_LISTING_DEPTH levels and only dirs that have
     // less than MAX_DRIVER_LISTING_DIRECT_SUB_DIRS direct sub dirs on the driver
     listDirRecursively(
         location,
         predicate,
-        hadoopConf.value(),
+        table.io(),
         MAX_DRIVER_LISTING_DEPTH,
         MAX_DRIVER_LISTING_DIRECT_SUB_DIRS,
         subDirs,
@@ -327,8 +325,10 @@ public class DeleteOrphanFilesSparkAction extends BaseSparkAction<DeleteOrphanFi
     int parallelism = Math.min(subDirs.size(), listingParallelism);
     JavaRDD<String> subDirRDD = sparkContext().parallelize(subDirs, parallelism);
 
-    Broadcast<SerializableConfiguration> conf = sparkContext().broadcast(hadoopConf);
-    ListDirsRecursively listDirs = new ListDirsRecursively(conf, olderThanTimestamp, pathFilter);
+    Broadcast<Table> tableBroadcast =
+        sparkContext().broadcast(SerializableTableWithSize.copyOf(table));
+    ListDirsRecursively listDirs =
+        new ListDirsRecursively(tableBroadcast, olderThanTimestamp, pathFilter);
     JavaRDD<String> matchingLeafFileRDD = subDirRDD.mapPartitions(listDirs);
 
     JavaRDD<String> completeMatchingFileRDD = matchingFileRDD.union(matchingLeafFileRDD);
@@ -337,12 +337,12 @@ public class DeleteOrphanFilesSparkAction extends BaseSparkAction<DeleteOrphanFi
 
   private static void listDirRecursively(
       String dir,
-      Predicate<FileStatus> predicate,
-      Configuration conf,
+      Predicate<org.apache.iceberg.io.FileInfo> predicate,
+      FileIO fileIO,
       int maxDepth,
       int maxDirectSubDirs,
       List<String> remainingSubDirs,
-      PathFilter pathFilter,
+      PartitionAwareHiddenPathFilter pathFilter,
       List<String> matchingFiles) {
 
     // stop listing whenever we reach the max depth
@@ -351,39 +351,42 @@ public class DeleteOrphanFilesSparkAction extends BaseSparkAction<DeleteOrphanFi
       return;
     }
 
-    try {
-      Path path = new Path(dir);
-      FileSystem fs = path.getFileSystem(conf);
+    if (!(fileIO instanceof SupportsPrefixOperations)) {
+      throw new UnsupportedOperationException(
+          "FileIO does not implement SupportsDirectoryOperations: " + fileIO.getClass().getName());
+    }
 
-      List<String> subDirs = Lists.newArrayList();
+    SupportsPrefixOperations prefixOps = (SupportsPrefixOperations) fileIO;
 
-      for (FileStatus file : fs.listStatus(path, pathFilter)) {
-        if (file.isDirectory()) {
-          subDirs.add(file.getPath().toString());
-        } else if (file.isFile() && predicate.test(file)) {
-          matchingFiles.add(file.getPath().toString());
-        }
+    List<String> subDirs = Lists.newArrayList();
+
+    for (org.apache.iceberg.io.FileInfo file : prefixOps.listPrefix(dir, PREFIX_DELIMITER)) {
+      if (!pathFilter.test(file)) {
+        continue;
       }
-
-      // stop listing if the number of direct sub dirs is bigger than maxDirectSubDirs
-      if (subDirs.size() > maxDirectSubDirs) {
-        remainingSubDirs.addAll(subDirs);
-        return;
+      if (file.type() == org.apache.iceberg.io.FileInfo.Type.DIRECTORY) {
+        subDirs.add(file.location());
+      } else if (file.type() == org.apache.iceberg.io.FileInfo.Type.FILE && predicate.test(file)) {
+        matchingFiles.add(file.location());
       }
+    }
 
-      for (String subDir : subDirs) {
-        listDirRecursively(
-            subDir,
-            predicate,
-            conf,
-            maxDepth - 1,
-            maxDirectSubDirs,
-            remainingSubDirs,
-            pathFilter,
-            matchingFiles);
-      }
-    } catch (IOException e) {
-      throw new UncheckedIOException(e);
+    // stop listing if the number of direct sub dirs is bigger than maxDirectSubDirs
+    if (subDirs.size() > maxDirectSubDirs) {
+      remainingSubDirs.addAll(subDirs);
+      return;
+    }
+
+    for (String subDir : subDirs) {
+      listDirRecursively(
+          subDir,
+          predicate,
+          fileIO,
+          maxDepth - 1,
+          maxDirectSubDirs,
+          remainingSubDirs,
+          pathFilter,
+          matchingFiles);
     }
   }
 
@@ -436,16 +439,16 @@ public class DeleteOrphanFilesSparkAction extends BaseSparkAction<DeleteOrphanFi
 
   private static class ListDirsRecursively implements FlatMapFunction<Iterator<String>, String> {
 
-    private final Broadcast<SerializableConfiguration> hadoopConf;
+    private final Broadcast<Table> tableBroadcast;
     private final long olderThanTimestamp;
-    private final PathFilter pathFilter;
+    private final PartitionAwareHiddenPathFilter pathFilter;
 
     ListDirsRecursively(
-        Broadcast<SerializableConfiguration> hadoopConf,
+        Broadcast<Table> tableBroadcast,
         long olderThanTimestamp,
-        PathFilter pathFilter) {
+        PartitionAwareHiddenPathFilter pathFilter) {
 
-      this.hadoopConf = hadoopConf;
+      this.tableBroadcast = tableBroadcast;
       this.olderThanTimestamp = olderThanTimestamp;
       this.pathFilter = pathFilter;
     }
@@ -455,13 +458,14 @@ public class DeleteOrphanFilesSparkAction extends BaseSparkAction<DeleteOrphanFi
       List<String> subDirs = Lists.newArrayList();
       List<String> files = Lists.newArrayList();
 
-      Predicate<FileStatus> predicate = file -> file.getModificationTime() < olderThanTimestamp;
+      Predicate<org.apache.iceberg.io.FileInfo> predicate =
+          file -> file.createdAtMillis() < olderThanTimestamp;
 
       while (dirs.hasNext()) {
         listDirRecursively(
             dirs.next(),
             predicate,
-            hadoopConf.value().value(),
+            tableBroadcast.value().io(),
             MAX_EXECUTOR_LISTING_DEPTH,
             MAX_EXECUTOR_LISTING_DIRECT_SUB_DIRS,
             subDirs,
@@ -573,7 +577,7 @@ public class DeleteOrphanFilesSparkAction extends BaseSparkAction<DeleteOrphanFi
 
     private FileURI toFileURI(I input) {
       String uriAsString = uriAsString(input);
-      URI uri = new Path(uriAsString).toUri();
+      URI uri = Paths.get(uriAsString).toUri();
       String scheme = equalSchemes.getOrDefault(uri.getScheme(), uri.getScheme());
       String authority = equalAuthorities.getOrDefault(uri.getAuthority(), uri.getAuthority());
       return new FileURI(scheme, authority, uri.getPath(), uriAsString);
@@ -581,12 +585,13 @@ public class DeleteOrphanFilesSparkAction extends BaseSparkAction<DeleteOrphanFi
   }
 
   /**
-   * A {@link PathFilter} that filters out hidden path, but does not filter out paths that would be
-   * marked as hidden by {@link HiddenPathFilter} due to a partition field that starts with one of
-   * the characters that indicate a hidden path.
+   * A predicate that filters out hidden paths, but does not filter out paths that would be marked
+   * as hidden due to a partition field that starts with one of the characters that indicate a
+   * hidden path.
    */
   @VisibleForTesting
-  static class PartitionAwareHiddenPathFilter implements PathFilter, Serializable {
+  static class PartitionAwareHiddenPathFilter
+      implements Predicate<org.apache.iceberg.io.FileInfo>, Serializable {
 
     private final Set<String> hiddenPathPartitionNames;
 
@@ -595,32 +600,33 @@ public class DeleteOrphanFilesSparkAction extends BaseSparkAction<DeleteOrphanFi
     }
 
     @Override
-    public boolean accept(Path path) {
-      return isHiddenPartitionPath(path) || HiddenPathFilter.get().accept(path);
+    public boolean test(org.apache.iceberg.io.FileInfo fileInfo) {
+      String fileName = Paths.get(fileInfo.location()).getFileName().toString();
+      return isHiddenPartitionPath(fileName) || !isHiddenPath(fileName);
     }
 
-    private boolean isHiddenPartitionPath(Path path) {
-      return hiddenPathPartitionNames.stream().anyMatch(path.getName()::startsWith);
+    private boolean isHiddenPartitionPath(String fileName) {
+      return hiddenPathPartitionNames.stream().anyMatch(fileName::startsWith);
     }
 
-    static PathFilter forSpecs(Map<Integer, PartitionSpec> specs) {
+    static PartitionAwareHiddenPathFilter forSpecs(Map<Integer, PartitionSpec> specs) {
+      Set<String> partitionNames;
       if (specs == null) {
-        return HiddenPathFilter.get();
-      }
-
-      Set<String> partitionNames =
-          specs.values().stream()
-              .map(PartitionSpec::fields)
-              .flatMap(List::stream)
-              .filter(field -> field.name().startsWith("_") || field.name().startsWith("."))
-              .map(field -> field.name() + "=")
-              .collect(Collectors.toSet());
-
-      if (partitionNames.isEmpty()) {
-        return HiddenPathFilter.get();
+        partitionNames = ImmutableSet.of();
       } else {
-        return new PartitionAwareHiddenPathFilter(partitionNames);
+        partitionNames =
+            specs.values().stream()
+                .map(PartitionSpec::fields)
+                .flatMap(List::stream)
+                .filter(field -> field.name().startsWith("_") || field.name().startsWith("."))
+                .map(field -> field.name() + "=")
+                .collect(Collectors.toSet());
       }
+      return new PartitionAwareHiddenPathFilter(partitionNames);
+    }
+
+    static boolean isHiddenPath(String fileName) {
+      return fileName.startsWith("_") || fileName.startsWith(".");
     }
   }
 
