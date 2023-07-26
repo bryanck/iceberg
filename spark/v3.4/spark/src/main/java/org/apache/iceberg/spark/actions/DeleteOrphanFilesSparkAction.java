@@ -23,7 +23,7 @@ import static org.apache.iceberg.TableProperties.GC_ENABLED_DEFAULT;
 
 import java.io.Serializable;
 import java.net.URI;
-import java.nio.file.Paths;
+import java.net.URISyntaxException;
 import java.sql.Timestamp;
 import java.util.Collections;
 import java.util.Iterator;
@@ -577,10 +577,14 @@ public class DeleteOrphanFilesSparkAction extends BaseSparkAction<DeleteOrphanFi
 
     private FileURI toFileURI(I input) {
       String uriAsString = uriAsString(input);
-      URI uri = Paths.get(uriAsString).toUri();
-      String scheme = equalSchemes.getOrDefault(uri.getScheme(), uri.getScheme());
-      String authority = equalAuthorities.getOrDefault(uri.getAuthority(), uri.getAuthority());
-      return new FileURI(scheme, authority, uri.getPath(), uriAsString);
+      try {
+        URI uri = new URI(uriAsString).normalize();
+        String scheme = equalSchemes.getOrDefault(uri.getScheme(), uri.getScheme());
+        String authority = equalAuthorities.getOrDefault(uri.getAuthority(), uri.getAuthority());
+        return new FileURI(scheme, authority, uri.getPath(), uriAsString);
+      } catch (URISyntaxException e) {
+        throw new RuntimeException("Invalid URI format for file: " + uriAsString, e);
+      }
     }
   }
 
@@ -601,7 +605,9 @@ public class DeleteOrphanFilesSparkAction extends BaseSparkAction<DeleteOrphanFi
 
     @Override
     public boolean test(org.apache.iceberg.io.FileInfo fileInfo) {
-      String fileName = Paths.get(fileInfo.location()).getFileName().toString();
+      String path = fileInfo.location();
+      int lastDelim = path.lastIndexOf(PREFIX_DELIMITER);
+      String fileName = path.substring(lastDelim + 1);
       return isHiddenPartitionPath(fileName) || !isHiddenPath(fileName);
     }
 
