@@ -624,7 +624,7 @@ public class DeleteOrphanFilesSparkAction extends BaseSparkAction<DeleteOrphanFi
             specs.values().stream()
                 .map(PartitionSpec::fields)
                 .flatMap(List::stream)
-                .filter(field -> field.name().startsWith("_") || field.name().startsWith("."))
+                .filter(field -> isHiddenPath(field.name()))
                 .map(field -> field.name() + "=")
                 .collect(Collectors.toSet());
       }
