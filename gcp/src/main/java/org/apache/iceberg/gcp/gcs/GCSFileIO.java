@@ -30,6 +30,7 @@ import org.apache.iceberg.gcp.GCPProperties;
 import org.apache.iceberg.io.FileIO;
 import org.apache.iceberg.io.InputFile;
 import org.apache.iceberg.io.OutputFile;
+import org.apache.iceberg.io.ProvidesClient;
 import org.apache.iceberg.metrics.MetricsContext;
 import org.apache.iceberg.util.SerializableMap;
 import org.apache.iceberg.util.SerializableSupplier;
@@ -48,7 +49,7 @@ import org.slf4j.LoggerFactory;
  * <p>See <a href="https://cloud.google.com/storage/docs/folders#overview">Cloud Storage
  * Overview</a>
  */
-public class GCSFileIO implements FileIO {
+public class GCSFileIO implements FileIO, ProvidesClient<Storage> {
   private static final Logger LOG = LoggerFactory.getLogger(GCSFileIO.class);
   private static final String DEFAULT_METRICS_IMPL =
       "org.apache.iceberg.hadoop.HadoopMetricsContext";
@@ -111,7 +112,8 @@ public class GCSFileIO implements FileIO {
     return properties.immutableMap();
   }
 
-  private Storage client() {
+  @Override
+  public Storage client() {
     if (storage == null) {
       synchronized (this) {
         if (storage == null) {
