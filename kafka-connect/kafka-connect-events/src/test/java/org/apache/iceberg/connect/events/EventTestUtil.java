@@ -20,37 +20,20 @@ package org.apache.iceberg.connect.events;
 
 import java.nio.ByteBuffer;
 import java.util.Collections;
-import java.util.List;
 import org.apache.iceberg.DataFile;
 import org.apache.iceberg.DeleteFile;
 import org.apache.iceberg.FileContent;
 import org.apache.iceberg.FileFormat;
+import org.apache.iceberg.GenericDataFile;
+import org.apache.iceberg.GenericDeleteFile;
 import org.apache.iceberg.Metrics;
 import org.apache.iceberg.PartitionData;
-import org.apache.iceberg.common.DynConstructors;
-import org.apache.iceberg.common.DynConstructors.Ctor;
 import org.apache.iceberg.types.Types.NestedField;
 import org.apache.iceberg.types.Types.StringType;
 import org.apache.iceberg.types.Types.StructType;
 
 public class EventTestUtil {
   public static DataFile createDataFile() {
-    Ctor<DataFile> ctor =
-        DynConstructors.builder(DataFile.class)
-            .hiddenImpl(
-                "org.apache.iceberg.GenericDataFile",
-                int.class,
-                String.class,
-                FileFormat.class,
-                PartitionData.class,
-                long.class,
-                Metrics.class,
-                ByteBuffer.class,
-                List.class,
-                int[].class,
-                Integer.class)
-            .build();
-
     PartitionData partitionData =
         new PartitionData(StructType.of(NestedField.required(999, "type", StringType.get())));
     Metrics metrics =
@@ -61,7 +44,7 @@ public class EventTestUtil {
             Collections.emptyMap(),
             Collections.emptyMap());
 
-    return ctor.newInstance(
+    return new GenericDataFile(
         1,
         "path",
         FileFormat.PARQUET,
@@ -75,23 +58,6 @@ public class EventTestUtil {
   }
 
   public static DeleteFile createDeleteFile() {
-    Ctor<DeleteFile> ctor =
-        DynConstructors.builder(DeleteFile.class)
-            .hiddenImpl(
-                "org.apache.iceberg.GenericDeleteFile",
-                int.class,
-                FileContent.class,
-                String.class,
-                FileFormat.class,
-                PartitionData.class,
-                long.class,
-                Metrics.class,
-                int[].class,
-                Integer.class,
-                List.class,
-                ByteBuffer.class)
-            .build();
-
     PartitionData partitionData =
         new PartitionData(StructType.of(NestedField.required(999, "type", StringType.get())));
     Metrics metrics =
@@ -102,7 +68,7 @@ public class EventTestUtil {
             Collections.emptyMap(),
             Collections.emptyMap());
 
-    return ctor.newInstance(
+    return new GenericDeleteFile(
         1,
         FileContent.EQUALITY_DELETES,
         "path",
