@@ -85,3 +85,5 @@ OPENAPI:
 AZURE:
   - azure/**/*
   - azure-bundle/**/*
+KAFKACONNECT:
+  - kafka-connect/**/*
