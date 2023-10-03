@@ -24,8 +24,6 @@ import org.apache.avro.Schema;
 import org.apache.avro.SchemaBuilder;
 import org.apache.iceberg.DataFile;
 import org.apache.iceberg.DeleteFile;
-import org.apache.iceberg.GenericDataFile;
-import org.apache.iceberg.GenericDeleteFile;
 import org.apache.iceberg.PartitionData;
 import org.apache.iceberg.avro.AvroSchemaUtil;
 import org.apache.iceberg.relocated.com.google.common.collect.ImmutableMap;
@@ -60,15 +58,19 @@ public class CommitResponsePayload implements Payload {
         AvroSchemaUtil.convert(
             dataFileStruct,
             ImmutableMap.of(
-                dataFileStruct, GenericDataFile.class.getName(),
-                partitionType, PartitionData.class.getName()));
+                dataFileStruct,
+                "org.apache.iceberg.GenericDataFile",
+                partitionType,
+                PartitionData.class.getName()));
 
     Schema deleteFileSchema =
         AvroSchemaUtil.convert(
             dataFileStruct,
             ImmutableMap.of(
-                dataFileStruct, GenericDeleteFile.class.getName(),
-                partitionType, PartitionData.class.getName()));
+                dataFileStruct,
+                "org.apache.iceberg.GenericDeleteFile",
+                partitionType,
+                PartitionData.class.getName()));
 
     this.avroSchema =
         SchemaBuilder.builder()

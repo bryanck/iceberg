@@ -25,13 +25,13 @@ import org.apache.iceberg.avro.AvroSchemaUtil;
 import org.apache.iceberg.relocated.com.google.common.collect.ImmutableMap;
 import org.apache.iceberg.types.Types;
 
-public class GenericDeleteFile extends BaseFile<DeleteFile> implements DeleteFile {
+class GenericDeleteFile extends BaseFile<DeleteFile> implements DeleteFile {
   /** Used by Avro reflection to instantiate this class when reading manifest files. */
-  public GenericDeleteFile(Schema avroSchema) {
+  GenericDeleteFile(Schema avroSchema) {
     super(avroSchema);
   }
 
-  public GenericDeleteFile(
+  GenericDeleteFile(
       int specId,
       FileContent content,
       String filePath,
@@ -74,7 +74,7 @@ public class GenericDeleteFile extends BaseFile<DeleteFile> implements DeleteFil
   }
 
   /** Constructor for Java serialization. */
-  public GenericDeleteFile() {}
+  GenericDeleteFile() {}
 
   @Override
   public DeleteFile copyWithoutStats() {

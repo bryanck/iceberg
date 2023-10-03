@@ -25,13 +25,13 @@ import org.apache.iceberg.avro.AvroSchemaUtil;
 import org.apache.iceberg.relocated.com.google.common.collect.ImmutableMap;
 import org.apache.iceberg.types.Types;
 
-public class GenericDataFile extends BaseFile<DataFile> implements DataFile {
+class GenericDataFile extends BaseFile<DataFile> implements DataFile {
   /** Used by Avro reflection to instantiate this class when reading manifest files. */
-  public GenericDataFile(Schema avroSchema) {
+  GenericDataFile(Schema avroSchema) {
     super(avroSchema);
   }
 
-  public GenericDataFile(
+  GenericDataFile(
       int specId,
       String filePath,
       FileFormat format,
@@ -73,7 +73,7 @@ public class GenericDataFile extends BaseFile<DataFile> implements DataFile {
   }
 
   /** Constructor for Java serialization. */
-  public GenericDataFile() {}
+  GenericDataFile() {}
 
   @Override
   public DataFile copyWithoutStats() {
