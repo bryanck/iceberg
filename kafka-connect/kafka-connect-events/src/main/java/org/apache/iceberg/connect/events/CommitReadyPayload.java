@@ -23,6 +23,10 @@ import java.util.UUID;
 import org.apache.avro.Schema;
 import org.apache.avro.SchemaBuilder;
 
+/**
+ * A control event payload for events sent by a worker that indicates it has finished sending all
+ * data for a commit request.
+ */
 public class CommitReadyPayload implements Payload {
 
   private UUID commitId;

@@ -25,6 +25,7 @@ import org.apache.avro.generic.IndexedRecord;
 import org.apache.avro.specific.SpecificData.SchemaConstructable;
 import org.apache.iceberg.avro.AvroSchemaUtil;
 
+/** Interface for complex types that will be used in an event schema. */
 public interface Element extends IndexedRecord, SchemaConstructable {
   // this is required by Iceberg's Avro deserializer to check for special metadata
   // fields, but we aren't using any

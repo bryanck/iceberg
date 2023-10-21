@@ -29,6 +29,10 @@ import org.apache.iceberg.avro.AvroSchemaUtil;
 import org.apache.iceberg.relocated.com.google.common.collect.ImmutableMap;
 import org.apache.iceberg.types.Types.StructType;
 
+/**
+ * A control event payload for events sent by a worker that contains the table data that has been
+ * written and is ready to commit.
+ */
 public class CommitResponsePayload implements Payload {
 
   private UUID commitId;

@@ -18,11 +18,17 @@
  */
 package org.apache.iceberg.connect.events;
 
+/** Control event types. */
 public enum EventType {
+  /** Maps to payload of type {@link CommitRequestPayload} */
   COMMIT_REQUEST(0),
+  /** Maps to payload of type {@link CommitResponsePayload} */
   COMMIT_RESPONSE(1),
+  /** Maps to payload of type {@link CommitReadyPayload} */
   COMMIT_READY(2),
+  /** Maps to payload of type {@link CommitTablePayload} */
   COMMIT_TABLE(3),
+  /** Maps to payload of type {@link CommitCompletePayload} */
   COMMIT_COMPLETE(4);
 
   private final int id;

@@ -22,6 +22,11 @@ import java.util.UUID;
 import org.apache.avro.Schema;
 import org.apache.avro.SchemaBuilder;
 
+/**
+ * A control event payload for events sent by a coordinator that indicates it has completed a commit
+ * cycle. Events with this payload are not consumed by the sink, they * are informational and can be
+ * used by consumers to trigger downstream processes.
+ */
 public class CommitCompletePayload implements Payload {
 
   private UUID commitId;

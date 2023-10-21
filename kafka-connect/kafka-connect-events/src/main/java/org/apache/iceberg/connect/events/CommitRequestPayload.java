@@ -22,6 +22,10 @@ import java.util.UUID;
 import org.apache.avro.Schema;
 import org.apache.avro.SchemaBuilder;
 
+/**
+ * A control event payload for events sent by a coordinator to request workers to send back the
+ * table data that has been written and is ready to commit.
+ */
 public class CommitRequestPayload implements Payload {
 
   private UUID commitId;

@@ -21,6 +21,7 @@ package org.apache.iceberg.connect.events;
 import org.apache.avro.Schema;
 import org.apache.avro.SchemaBuilder;
 
+/** Element representing an offset, with topic name, partition number, and offset. */
 public class TopicPartitionOffset implements Element {
 
   private String topic;

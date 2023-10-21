@@ -28,6 +28,7 @@ import org.apache.avro.util.Utf8;
 import org.apache.iceberg.catalog.Namespace;
 import org.apache.iceberg.catalog.TableIdentifier;
 
+/** Element representing a table identifier, with namespace and name. */
 public class TableName implements Element {
 
   private List<String> namespace;

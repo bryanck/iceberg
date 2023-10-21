@@ -26,6 +26,10 @@ import org.apache.avro.SchemaBuilder;
 import org.apache.iceberg.avro.AvroEncoderUtil;
 import org.apache.iceberg.data.avro.DecoderResolver;
 
+/**
+ * Class representing all events produced to the control topic. Different event types have different
+ * payloads.
+ */
 public class Event implements Element {
 
   private UUID id;
