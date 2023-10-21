@@ -64,6 +64,10 @@ public class CommitCompletePayload implements Payload {
     return commitId;
   }
 
+  /**
+   * Valid-through timestamp, which is the min-of-max record timestamps across all workers for the
+   * commit.
+   */
   public Long vtts() {
     return vtts;
   }

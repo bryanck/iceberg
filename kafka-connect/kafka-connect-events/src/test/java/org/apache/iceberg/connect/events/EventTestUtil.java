@@ -34,6 +34,8 @@ import org.apache.iceberg.types.Types.StringType;
 import org.apache.iceberg.types.Types.StructType;
 
 public class EventTestUtil {
+  private EventTestUtil() {}
+
   public static DataFile createDataFile() {
     Ctor<DataFile> ctor =
         DynConstructors.builder(DataFile.class)
@@ -115,6 +117,4 @@ public class EventTestUtil {
         Collections.singletonList(1L),
         ByteBuffer.wrap(new byte[] {0}));
   }
-
-  private EventTestUtil() {}
 }
