@@ -22,10 +22,9 @@ import org.apache.avro.LogicalTypes;
 import org.apache.avro.Schema;
 import org.apache.avro.SchemaBuilder;
 import org.apache.avro.generic.IndexedRecord;
-import org.apache.avro.specific.SpecificData.SchemaConstructable;
 
 /** Interface for complex types that will be used in an event schema. */
-public interface Element extends IndexedRecord, SchemaConstructable {
+public interface Element extends IndexedRecord {
   Schema UUID_SCHEMA =
       LogicalTypes.uuid().addToSchema(SchemaBuilder.builder().fixed("uuid").size(16));
 }
