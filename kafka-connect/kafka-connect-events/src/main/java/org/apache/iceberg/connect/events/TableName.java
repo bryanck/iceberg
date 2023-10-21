@@ -25,6 +25,7 @@ import java.util.List;
 import org.apache.avro.Schema;
 import org.apache.avro.SchemaBuilder;
 import org.apache.avro.util.Utf8;
+import org.apache.iceberg.avro.AvroSchemaUtil;
 import org.apache.iceberg.catalog.Namespace;
 import org.apache.iceberg.catalog.TableIdentifier;
 
@@ -40,14 +41,14 @@ public class TableName implements Element {
           .record(TableName.class.getName())
           .fields()
           .name("namespace")
-          .prop(FIELD_ID_PROP, DUMMY_FIELD_ID)
+          .prop(AvroSchemaUtil.FIELD_ID_PROP, 1600)
           .type()
           .array()
           .items()
           .stringType()
           .noDefault()
           .name("name")
-          .prop(FIELD_ID_PROP, DUMMY_FIELD_ID)
+          .prop(AvroSchemaUtil.FIELD_ID_PROP, 1601)
           .type()
           .stringType()
           .noDefault()

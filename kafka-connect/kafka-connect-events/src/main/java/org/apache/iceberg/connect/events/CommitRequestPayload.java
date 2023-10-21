@@ -21,6 +21,7 @@ package org.apache.iceberg.connect.events;
 import java.util.UUID;
 import org.apache.avro.Schema;
 import org.apache.avro.SchemaBuilder;
+import org.apache.iceberg.avro.AvroSchemaUtil;
 
 /**
  * A control event payload for events sent by a coordinator to request workers to send back the
@@ -36,7 +37,7 @@ public class CommitRequestPayload implements Payload {
           .record(CommitRequestPayload.class.getName())
           .fields()
           .name("commitId")
-          .prop(FIELD_ID_PROP, DUMMY_FIELD_ID)
+          .prop(AvroSchemaUtil.FIELD_ID_PROP, 1200)
           .type(UUID_SCHEMA)
           .noDefault()
           .endRecord();

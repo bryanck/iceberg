@@ -20,6 +20,7 @@ package org.apache.iceberg.connect.events;
 
 import org.apache.avro.Schema;
 import org.apache.avro.SchemaBuilder;
+import org.apache.iceberg.avro.AvroSchemaUtil;
 
 /** Element representing an offset, with topic name, partition number, and offset. */
 public class TopicPartitionOffset implements Element {
@@ -35,23 +36,23 @@ public class TopicPartitionOffset implements Element {
           .record(TopicPartitionOffset.class.getName())
           .fields()
           .name("topic")
-          .prop(FIELD_ID_PROP, DUMMY_FIELD_ID)
+          .prop(AvroSchemaUtil.FIELD_ID_PROP, 1700)
           .type()
           .stringType()
           .noDefault()
           .name("partition")
-          .prop(FIELD_ID_PROP, DUMMY_FIELD_ID)
+          .prop(AvroSchemaUtil.FIELD_ID_PROP, 1701)
           .type()
           .intType()
           .noDefault()
           .name("offset")
-          .prop(FIELD_ID_PROP, DUMMY_FIELD_ID)
+          .prop(AvroSchemaUtil.FIELD_ID_PROP, 1702)
           .type()
           .nullable()
           .longType()
           .noDefault()
           .name("timestamp")
-          .prop(FIELD_ID_PROP, DUMMY_FIELD_ID)
+          .prop(AvroSchemaUtil.FIELD_ID_PROP, 1703)
           .type()
           .nullable()
           .longType()

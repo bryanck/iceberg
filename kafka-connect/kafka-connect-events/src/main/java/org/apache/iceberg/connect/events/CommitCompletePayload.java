@@ -21,6 +21,7 @@ package org.apache.iceberg.connect.events;
 import java.util.UUID;
 import org.apache.avro.Schema;
 import org.apache.avro.SchemaBuilder;
+import org.apache.iceberg.avro.AvroSchemaUtil;
 
 /**
  * A control event payload for events sent by a coordinator that indicates it has completed a commit
@@ -38,11 +39,11 @@ public class CommitCompletePayload implements Payload {
           .record(CommitCompletePayload.class.getName())
           .fields()
           .name("commitId")
-          .prop(FIELD_ID_PROP, DUMMY_FIELD_ID)
+          .prop(AvroSchemaUtil.FIELD_ID_PROP, 1000)
           .type(UUID_SCHEMA)
           .noDefault()
           .name("vtts")
-          .prop(FIELD_ID_PROP, DUMMY_FIELD_ID)
+          .prop(AvroSchemaUtil.FIELD_ID_PROP, 1001)
           .type()
           .nullable()
           .longType()

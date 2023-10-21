@@ -24,6 +24,7 @@ import java.util.UUID;
 import org.apache.avro.Schema;
 import org.apache.avro.SchemaBuilder;
 import org.apache.iceberg.avro.AvroEncoderUtil;
+import org.apache.iceberg.avro.AvroSchemaUtil;
 import org.apache.iceberg.data.avro.DecoderResolver;
 
 /**
@@ -75,25 +76,25 @@ public class Event implements Element {
             .record(getClass().getName())
             .fields()
             .name("id")
-            .prop(FIELD_ID_PROP, DUMMY_FIELD_ID)
+            .prop(AvroSchemaUtil.FIELD_ID_PROP, 1500)
             .type(UUID_SCHEMA)
             .noDefault()
             .name("type")
-            .prop(FIELD_ID_PROP, DUMMY_FIELD_ID)
+            .prop(AvroSchemaUtil.FIELD_ID_PROP, 1501)
             .type()
             .intType()
             .noDefault()
             .name("timestamp")
-            .prop(FIELD_ID_PROP, DUMMY_FIELD_ID)
+            .prop(AvroSchemaUtil.FIELD_ID_PROP, 1502)
             .type()
             .longType()
             .noDefault()
             .name("payload")
-            .prop(FIELD_ID_PROP, DUMMY_FIELD_ID)
+            .prop(AvroSchemaUtil.FIELD_ID_PROP, 1503)
             .type(payload.getSchema())
             .noDefault()
             .name("groupId")
-            .prop(FIELD_ID_PROP, DUMMY_FIELD_ID)
+            .prop(AvroSchemaUtil.FIELD_ID_PROP, 1504)
             .type()
             .stringType()
             .noDefault()
