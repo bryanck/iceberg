@@ -9,15 +9,6 @@ The Apache Iceberg Sink Connector for Kafka Connect is a sink connector for writ
 * Automatic table creation and schema evolution
 * Field name mapping via Iceberg’s column mapping functionality
 
-# Installation
-The Apache Iceberg Sink Connector is under active development, with early access builds available under
-[Releases](https://github.com/tabular-io/iceberg-kafka-connect/releases). You can build the connector
-zip archive yourself by running:
-```bash
-./gradlew -xtest clean build
-```
-The zip archive will be found under `./kafka-connect-runtime/build/distributions`.
-
 # Configuration
 
 | Property                                   | Description                                                                                                   |
@@ -177,7 +168,7 @@ This example config connects to a Iceberg REST catalog.
 {
 "name": "events-sink",
 "config": {
-    "connector.class": "io.tabular.iceberg.connect.IcebergSinkConnector",
+    "connector.class": "org.apache.iceberg.connect.IcebergSinkConnector",
     "tasks.max": "2",
     "topics": "events",
     "iceberg.tables": "default.events",
@@ -216,7 +207,7 @@ PARTITIONED BY (hours(ts));
 {
 "name": "events-sink",
 "config": {
-    "connector.class": "io.tabular.iceberg.connect.IcebergSinkConnector",
+    "connector.class": "org.apache.iceberg.connect.IcebergSinkConnector",
     "tasks.max": "2",
     "topics": "events",
     "iceberg.tables": "default.events_list,default.events_create",
@@ -244,7 +235,7 @@ See above for creating two tables.
 {
 "name": "events-sink",
 "config": {
-    "connector.class": "io.tabular.iceberg.connect.IcebergSinkConnector",
+    "connector.class": "org.apache.iceberg.connect.IcebergSinkConnector",
     "tasks.max": "2",
     "topics": "events",
     "iceberg.tables.dynamic-enabled": "true",
@@ -273,7 +264,7 @@ See above for creating the table
 {
 "name": "events-sink",
 "config": {
-    "connector.class": "io.tabular.iceberg.connect.IcebergSinkConnector",
+    "connector.class": "org.apache.iceberg.connect.IcebergSinkConnector",
     "tasks.max": "2",
     "topics": "events",
     "iceberg.tables": "default.events",
@@ -286,36 +277,3 @@ See above for creating the table
 }
 ```
 
-### AWS DMS example (experimental)
-
-The `io.tabular.iceberg.connect.transforms.DmsTransform` SMT can be used to convert an AWS DMS
-message for use by the sink. This transform will promote the data fields to top level, and add
-three metadata fields. These fields are `_cdc_op` for operation type (I, U, D), `_cdc_table` for
-the source table name, and `_cdc_ts` for the operation timestamp.
-
-Here is an example config that uses this transform to apply updates to an Iceberg table. The
-`routeRegex` is defined to ensure the correct message is routed to the table.
-
-```json
-{
-"name": "dms-cdc-sink",
-"config": {
-    "connector.class": "io.tabular.iceberg.connect.IcebergSinkConnector",
-    "tasks.max": "2",
-    "topics": "dms-topic",
-    "key.converter": "org.apache.kafka.connect.storage.StringConverter",
-    "value.converter": "org.apache.kafka.connect.json.JsonConverter",
-    "value.converter.schemas.enable": "false",
-    "transforms": "dms",
-    "transforms.dms.type": "io.tabular.iceberg.connect.transforms.DmsTransform",
-    "iceberg.tables": "default.dms_test",
-    "iceberg.tables.cdc-field": "_cdc_op",
-    "iceberg.tables.route-field": "_cdc_table",
-    "iceberg.table.default.dms_test.route-regex": "src_db.src_table",
-    "iceberg.catalog.type": "rest",
-    "iceberg.catalog.uri": "https://localhost",
-    "iceberg.catalog.credential": "<credential>",
-    "iceberg.catalog.warehouse": "<warehouse name>"
-    }
-}
-```
