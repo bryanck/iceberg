@@ -45,7 +45,9 @@ public class IcebergSinkConnector extends SinkConnector {
 
   @Override
   public Class<? extends Task> taskClass() {
-    return IcebergSinkTask.class;
+    // TODO: update this when the remaining code is added
+    // return IcebergSinkTask.class;
+    return null;
   }
 
   @Override
