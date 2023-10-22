@@ -98,12 +98,9 @@ public class RecordConverterTest {
           Types.NestedField.required(31, "u", Types.UUIDType.get()),
           Types.NestedField.required(32, "f", Types.FixedType.ofLength(3)),
           Types.NestedField.required(33, "b", BinaryType.get()),
+          Types.NestedField.required(34, "li", ListType.ofRequired(35, StringType.get())),
           Types.NestedField.required(
-              34, "li", ListType.ofRequired(35, StringType.get())),
-          Types.NestedField.required(
-              36,
-              "ma",
-              MapType.ofRequired(37, 38, StringType.get(), StringType.get())),
+              36, "ma", MapType.ofRequired(37, 38, StringType.get(), StringType.get())),
           Types.NestedField.optional(39, "extra", StringType.get()));
 
   // we have 1 unmapped column so exclude that from the count
