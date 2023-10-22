@@ -20,26 +20,19 @@ package org.apache.iceberg.connect.events;
 
 import java.nio.ByteBuffer;
 import java.util.Collections;
-import java.util.List;
 import org.apache.iceberg.DataFile;
 import org.apache.iceberg.DataFiles;
 import org.apache.iceberg.DeleteFile;
-import org.apache.iceberg.FileContent;
 import org.apache.iceberg.FileFormat;
+import org.apache.iceberg.FileMetadata;
 import org.apache.iceberg.Metrics;
 import org.apache.iceberg.NullOrder;
-import org.apache.iceberg.PartitionData;
 import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.Schema;
 import org.apache.iceberg.SortDirection;
 import org.apache.iceberg.SortOrder;
-import org.apache.iceberg.common.DynConstructors;
-import org.apache.iceberg.common.DynConstructors.Ctor;
 import org.apache.iceberg.relocated.com.google.common.collect.ImmutableList;
 import org.apache.iceberg.types.Types;
-import org.apache.iceberg.types.Types.NestedField;
-import org.apache.iceberg.types.Types.StringType;
-import org.apache.iceberg.types.Types.StructType;
 
 public class EventTestUtil {
   private EventTestUtil() {}
@@ -48,7 +41,6 @@ public class EventTestUtil {
     Schema schema =
         new Schema(ImmutableList.of(Types.NestedField.required(1, "id", Types.LongType.get())));
     PartitionSpec spec = PartitionSpec.builderFor(schema).identity("id").withSpecId(1).build();
-
     SortOrder order =
         SortOrder.builderFor(schema).sortBy("id", SortDirection.ASC, NullOrder.NULLS_FIRST).build();
 
@@ -61,36 +53,23 @@ public class EventTestUtil {
             Collections.emptyMap());
 
     return DataFiles.builder(spec)
-        .withPath("path")
-        .withFormat(FileFormat.PARQUET)
-        .withFileSizeInBytes(1L)
-        .withMetrics(metrics)
         .withEncryptionKeyMetadata(ByteBuffer.wrap(new byte[] {0}))
-        .withSplitOffsets(ImmutableList.of(4L))
+        .withFileSizeInBytes(1L)
+        .withFormat(FileFormat.PARQUET)
+        .withMetrics(metrics)
+        .withPath("path")
         .withSortOrder(order)
+        .withSplitOffsets(ImmutableList.of(4L))
         .build();
   }
 
   public static DeleteFile createDeleteFile() {
-    Ctor<DeleteFile> ctor =
-        DynConstructors.builder(DeleteFile.class)
-            .hiddenImpl(
-                "org.apache.iceberg.GenericDeleteFile",
-                int.class,
-                FileContent.class,
-                String.class,
-                FileFormat.class,
-                PartitionData.class,
-                long.class,
-                Metrics.class,
-                int[].class,
-                Integer.class,
-                List.class,
-                ByteBuffer.class)
-            .build();
+    Schema schema =
+        new Schema(ImmutableList.of(Types.NestedField.required(1, "id", Types.LongType.get())));
+    PartitionSpec spec = PartitionSpec.builderFor(schema).identity("id").withSpecId(1).build();
+    SortOrder order =
+        SortOrder.builderFor(schema).sortBy("id", SortDirection.ASC, NullOrder.NULLS_FIRST).build();
 
-    PartitionData partitionData =
-        new PartitionData(StructType.of(NestedField.required(999, "type", StringType.get())));
     Metrics metrics =
         new Metrics(
             1L,
@@ -99,17 +78,15 @@ public class EventTestUtil {
             Collections.emptyMap(),
             Collections.emptyMap());
 
-    return ctor.newInstance(
-        1,
-        FileContent.EQUALITY_DELETES,
-        "path",
-        FileFormat.PARQUET,
-        partitionData,
-        1L,
-        metrics,
-        new int[] {1},
-        1,
-        Collections.singletonList(1L),
-        ByteBuffer.wrap(new byte[] {0}));
+    return FileMetadata.deleteFileBuilder(spec)
+        .ofEqualityDeletes(1)
+        .withEncryptionKeyMetadata(ByteBuffer.wrap(new byte[] {0}))
+        .withFileSizeInBytes(1L)
+        .withFormat(FileFormat.PARQUET)
+        .withMetrics(metrics)
+        .withPath("path")
+        .withSortOrder(order)
+        .withSplitOffsets(ImmutableList.of(4L))
+        .build();
   }
 }
