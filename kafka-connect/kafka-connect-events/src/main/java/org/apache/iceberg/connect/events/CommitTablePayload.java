@@ -31,7 +31,7 @@ import org.apache.iceberg.avro.AvroSchemaUtil;
 public class CommitTablePayload implements Payload {
 
   private UUID commitId;
-  private FullTableName tableName;
+  private TableReference tableReference;
   private Long snapshotId;
   private Long validThroughTs;
   private final Schema avroSchema;
@@ -44,9 +44,9 @@ public class CommitTablePayload implements Payload {
           .prop(AvroSchemaUtil.FIELD_ID_PROP, 1400)
           .type(UUID_SCHEMA)
           .noDefault()
-          .name("tableName")
+          .name("tableReference")
           .prop(AvroSchemaUtil.FIELD_ID_PROP, 1401)
-          .type(FullTableName.AVRO_SCHEMA)
+          .type(TableReference.AVRO_SCHEMA)
           .noDefault()
           .name("snapshotId")
           .prop(AvroSchemaUtil.FIELD_ID_PROP, 1402)
@@ -68,9 +68,9 @@ public class CommitTablePayload implements Payload {
   }
 
   public CommitTablePayload(
-      UUID commitId, FullTableName tableName, Long snapshotId, Long validThroughTs) {
+      UUID commitId, TableReference tableReference, Long snapshotId, Long validThroughTs) {
     this.commitId = commitId;
-    this.tableName = tableName;
+    this.tableReference = tableReference;
     this.snapshotId = snapshotId;
     this.validThroughTs = validThroughTs;
     this.avroSchema = AVRO_SCHEMA;
@@ -80,8 +80,8 @@ public class CommitTablePayload implements Payload {
     return commitId;
   }
 
-  public FullTableName tableName() {
-    return tableName;
+  public TableReference tableReference() {
+    return tableReference;
   }
 
   public Long snapshotId() {
@@ -105,7 +105,7 @@ public class CommitTablePayload implements Payload {
         this.commitId = (UUID) v;
         return;
       case 1:
-        this.tableName = (FullTableName) v;
+        this.tableReference = (TableReference) v;
         return;
       case 2:
         this.snapshotId = (Long) v;
@@ -124,7 +124,7 @@ public class CommitTablePayload implements Payload {
       case 0:
         return commitId;
       case 1:
-        return tableName;
+        return tableReference;
       case 2:
         return snapshotId;
       case 3:

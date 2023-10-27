@@ -36,7 +36,7 @@ import org.apache.iceberg.types.Types.StructType;
 public class CommitResponsePayload implements Payload {
 
   private UUID commitId;
-  private FullTableName tableName;
+  private TableReference tableReference;
   private List<DataFile> dataFiles;
   private List<DeleteFile> deleteFiles;
   private final Schema avroSchema;
@@ -49,11 +49,11 @@ public class CommitResponsePayload implements Payload {
   public CommitResponsePayload(
       StructType partitionType,
       UUID commitId,
-      FullTableName tableName,
+      TableReference tableReference,
       List<DataFile> dataFiles,
       List<DeleteFile> deleteFiles) {
     this.commitId = commitId;
-    this.tableName = tableName;
+    this.tableReference = tableReference;
     this.dataFiles = dataFiles;
     this.deleteFiles = deleteFiles;
 
@@ -84,9 +84,9 @@ public class CommitResponsePayload implements Payload {
             .prop(AvroSchemaUtil.FIELD_ID_PROP, 1300)
             .type(UUID_SCHEMA)
             .noDefault()
-            .name("tableName")
+            .name("tableRef")
             .prop(AvroSchemaUtil.FIELD_ID_PROP, 1301)
-            .type(FullTableName.AVRO_SCHEMA)
+            .type(TableReference.AVRO_SCHEMA)
             .noDefault()
             .name("dataFiles")
             .prop(AvroSchemaUtil.FIELD_ID_PROP, 1302)
@@ -109,8 +109,8 @@ public class CommitResponsePayload implements Payload {
     return commitId;
   }
 
-  public FullTableName tableName() {
-    return tableName;
+  public TableReference tableReference() {
+    return tableReference;
   }
 
   public List<DataFile> dataFiles() {
@@ -134,7 +134,7 @@ public class CommitResponsePayload implements Payload {
         this.commitId = (UUID) v;
         return;
       case 1:
-        this.tableName = (FullTableName) v;
+        this.tableReference = (TableReference) v;
         return;
       case 2:
         this.dataFiles = (List<DataFile>) v;
@@ -153,7 +153,7 @@ public class CommitResponsePayload implements Payload {
       case 0:
         return commitId;
       case 1:
-        return tableName;
+        return tableReference;
       case 2:
         return dataFiles;
       case 3:

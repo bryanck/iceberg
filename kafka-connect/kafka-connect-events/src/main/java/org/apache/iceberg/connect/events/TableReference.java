@@ -30,7 +30,7 @@ import org.apache.iceberg.catalog.Namespace;
 import org.apache.iceberg.catalog.TableIdentifier;
 
 /** Element representing a table identifier, with namespace and name. */
-public class FullTableName implements Element {
+public class TableReference implements Element {
 
   private List<String> namespace;
   private String name;
@@ -38,7 +38,7 @@ public class FullTableName implements Element {
 
   public static final Schema AVRO_SCHEMA =
       SchemaBuilder.builder()
-          .record(FullTableName.class.getName())
+          .record(TableReference.class.getName())
           .fields()
           .name("namespace")
           .prop(AvroSchemaUtil.FIELD_ID_PROP, 1600)
@@ -54,17 +54,17 @@ public class FullTableName implements Element {
           .noDefault()
           .endRecord();
 
-  public static FullTableName of(TableIdentifier tableIdentifier) {
-    return new FullTableName(
+  public static TableReference of(TableIdentifier tableIdentifier) {
+    return new TableReference(
         Arrays.asList(tableIdentifier.namespace().levels()), tableIdentifier.name());
   }
 
   // Used by Avro reflection to instantiate this class when reading events
-  public FullTableName(Schema avroSchema) {
+  public TableReference(Schema avroSchema) {
     this.avroSchema = avroSchema;
   }
 
-  public FullTableName(List<String> namespace, String name) {
+  public TableReference(List<String> namespace, String name) {
     this.namespace = namespace;
     this.name = name;
     this.avroSchema = AVRO_SCHEMA;
