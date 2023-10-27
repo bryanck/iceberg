@@ -53,7 +53,7 @@ public class EventSerializationTest {
             new CommitResponsePayload(
                 StructType.of(),
                 commitId,
-                new TableReference(Collections.singletonList("db"), "tbl"),
+                new TableReference("catalog", Collections.singletonList("db"), "tbl"),
                 Arrays.asList(EventTestUtil.createDataFile(), EventTestUtil.createDataFile()),
                 Arrays.asList(EventTestUtil.createDeleteFile(), EventTestUtil.createDeleteFile())));
 
@@ -63,7 +63,8 @@ public class EventSerializationTest {
     assertThat(result.type()).isEqualTo(event.type());
     CommitResponsePayload payload = (CommitResponsePayload) result.payload();
     assertThat(payload.commitId()).isEqualTo(commitId);
-    assertThat(payload.tableReference().toIdentifier()).isEqualTo(TableIdentifier.parse("db.tbl"));
+    assertThat(payload.tableReference().catalog()).isEqualTo("catalog");
+    assertThat(payload.tableReference().identifier()).isEqualTo(TableIdentifier.parse("db.tbl"));
     assertThat(payload.dataFiles()).hasSize(2);
     assertThat(payload.dataFiles()).allMatch(f -> f.specId() == 1);
     assertThat(payload.deleteFiles()).hasSize(2);
@@ -101,7 +102,10 @@ public class EventSerializationTest {
             "cg-connector",
             EventType.COMMIT_TABLE,
             new CommitTablePayload(
-                commitId, new TableReference(Collections.singletonList("db"), "tbl"), 1L, 2L));
+                commitId,
+                new TableReference("catalog", Collections.singletonList("db"), "tbl"),
+                1L,
+                2L));
 
     byte[] data = Event.encode(event);
     Event result = Event.decode(data);
@@ -109,7 +113,8 @@ public class EventSerializationTest {
     assertThat(result.type()).isEqualTo(event.type());
     CommitTablePayload payload = (CommitTablePayload) result.payload();
     assertThat(payload.commitId()).isEqualTo(commitId);
-    assertThat(payload.tableReference().toIdentifier()).isEqualTo(TableIdentifier.parse("db.tbl"));
+    assertThat(payload.tableReference().catalog()).isEqualTo("catalog");
+    assertThat(payload.tableReference().identifier()).isEqualTo(TableIdentifier.parse("db.tbl"));
     assertThat(payload.snapshotId()).isEqualTo(1L);
     assertThat(payload.validThroughTs()).isEqualTo(2L);
   }

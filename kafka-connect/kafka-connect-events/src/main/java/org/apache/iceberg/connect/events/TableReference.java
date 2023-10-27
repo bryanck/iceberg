@@ -32,6 +32,7 @@ import org.apache.iceberg.catalog.TableIdentifier;
 /** Element representing a table identifier, with namespace and name. */
 public class TableReference implements Element {
 
+  private String catalog;
   private List<String> namespace;
   private String name;
   private final Schema avroSchema;
@@ -40,23 +41,28 @@ public class TableReference implements Element {
       SchemaBuilder.builder()
           .record(TableReference.class.getName())
           .fields()
-          .name("namespace")
+          .name("catalog")
           .prop(AvroSchemaUtil.FIELD_ID_PROP, 1600)
+          .type()
+          .stringType()
+          .noDefault()
+          .name("namespace")
+          .prop(AvroSchemaUtil.FIELD_ID_PROP, 1601)
           .type()
           .array()
           .items()
           .stringType()
           .noDefault()
           .name("name")
-          .prop(AvroSchemaUtil.FIELD_ID_PROP, 1601)
+          .prop(AvroSchemaUtil.FIELD_ID_PROP, 1602)
           .type()
           .stringType()
           .noDefault()
           .endRecord();
 
-  public static TableReference of(TableIdentifier tableIdentifier) {
+  public static TableReference of(String catalog, TableIdentifier tableIdentifier) {
     return new TableReference(
-        Arrays.asList(tableIdentifier.namespace().levels()), tableIdentifier.name());
+        catalog, Arrays.asList(tableIdentifier.namespace().levels()), tableIdentifier.name());
   }
 
   // Used by Avro reflection to instantiate this class when reading events
@@ -64,13 +70,18 @@ public class TableReference implements Element {
     this.avroSchema = avroSchema;
   }
 
-  public TableReference(List<String> namespace, String name) {
+  public TableReference(String catalog, List<String> namespace, String name) {
+    this.catalog = catalog;
     this.namespace = namespace;
     this.name = name;
     this.avroSchema = AVRO_SCHEMA;
   }
 
-  public TableIdentifier toIdentifier() {
+  public String catalog() {
+    return catalog;
+  }
+
+  public TableIdentifier identifier() {
     Namespace icebergNamespace = Namespace.of(namespace.toArray(new String[0]));
     return TableIdentifier.of(icebergNamespace, name);
   }
@@ -85,10 +96,13 @@ public class TableReference implements Element {
   public void put(int i, Object v) {
     switch (i) {
       case 0:
+        this.catalog = v == null ? null : v.toString();
+        return;
+      case 1:
         this.namespace =
             v == null ? null : ((List<Utf8>) v).stream().map(Utf8::toString).collect(toList());
         return;
-      case 1:
+      case 2:
         this.name = v == null ? null : v.toString();
         return;
       default:
@@ -100,8 +114,10 @@ public class TableReference implements Element {
   public Object get(int i) {
     switch (i) {
       case 0:
-        return namespace;
+        return catalog;
       case 1:
+        return namespace;
+      case 2:
         return name;
       default:
         throw new UnsupportedOperationException("Unknown field ordinal: " + i);
