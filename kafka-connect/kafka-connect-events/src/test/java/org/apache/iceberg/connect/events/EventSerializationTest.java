@@ -53,7 +53,7 @@ public class EventSerializationTest {
             new CommitResponsePayload(
                 StructType.of(),
                 commitId,
-                new TableName(Collections.singletonList("db"), "tbl"),
+                new FullTableName(Collections.singletonList("db"), "tbl"),
                 Arrays.asList(EventTestUtil.createDataFile(), EventTestUtil.createDataFile()),
                 Arrays.asList(EventTestUtil.createDeleteFile(), EventTestUtil.createDeleteFile())));
 
@@ -101,7 +101,7 @@ public class EventSerializationTest {
             "cg-connector",
             EventType.COMMIT_TABLE,
             new CommitTablePayload(
-                commitId, new TableName(Collections.singletonList("db"), "tbl"), 1L, 2L));
+                commitId, new FullTableName(Collections.singletonList("db"), "tbl"), 1L, 2L));
 
     byte[] data = Event.encode(event);
     Event result = Event.decode(data);

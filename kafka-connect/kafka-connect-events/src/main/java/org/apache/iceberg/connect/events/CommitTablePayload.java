@@ -31,7 +31,7 @@ import org.apache.iceberg.avro.AvroSchemaUtil;
 public class CommitTablePayload implements Payload {
 
   private UUID commitId;
-  private TableName tableName;
+  private FullTableName tableName;
   private Long snapshotId;
   private Long validThroughTs;
   private final Schema avroSchema;
@@ -46,7 +46,7 @@ public class CommitTablePayload implements Payload {
           .noDefault()
           .name("tableName")
           .prop(AvroSchemaUtil.FIELD_ID_PROP, 1401)
-          .type(TableName.AVRO_SCHEMA)
+          .type(FullTableName.AVRO_SCHEMA)
           .noDefault()
           .name("snapshotId")
           .prop(AvroSchemaUtil.FIELD_ID_PROP, 1402)
@@ -68,7 +68,7 @@ public class CommitTablePayload implements Payload {
   }
 
   public CommitTablePayload(
-      UUID commitId, TableName tableName, Long snapshotId, Long validThroughTs) {
+      UUID commitId, FullTableName tableName, Long snapshotId, Long validThroughTs) {
     this.commitId = commitId;
     this.tableName = tableName;
     this.snapshotId = snapshotId;
@@ -80,7 +80,7 @@ public class CommitTablePayload implements Payload {
     return commitId;
   }
 
-  public TableName tableName() {
+  public FullTableName tableName() {
     return tableName;
   }
 
@@ -105,7 +105,7 @@ public class CommitTablePayload implements Payload {
         this.commitId = (UUID) v;
         return;
       case 1:
-        this.tableName = (TableName) v;
+        this.tableName = (FullTableName) v;
         return;
       case 2:
         this.snapshotId = (Long) v;

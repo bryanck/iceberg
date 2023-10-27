@@ -36,7 +36,7 @@ import org.apache.iceberg.types.Types.StructType;
 public class CommitResponsePayload implements Payload {
 
   private UUID commitId;
-  private TableName tableName;
+  private FullTableName tableName;
   private List<DataFile> dataFiles;
   private List<DeleteFile> deleteFiles;
   private final Schema avroSchema;
@@ -49,7 +49,7 @@ public class CommitResponsePayload implements Payload {
   public CommitResponsePayload(
       StructType partitionType,
       UUID commitId,
-      TableName tableName,
+      FullTableName tableName,
       List<DataFile> dataFiles,
       List<DeleteFile> deleteFiles) {
     this.commitId = commitId;
@@ -86,7 +86,7 @@ public class CommitResponsePayload implements Payload {
             .noDefault()
             .name("tableName")
             .prop(AvroSchemaUtil.FIELD_ID_PROP, 1301)
-            .type(TableName.AVRO_SCHEMA)
+            .type(FullTableName.AVRO_SCHEMA)
             .noDefault()
             .name("dataFiles")
             .prop(AvroSchemaUtil.FIELD_ID_PROP, 1302)
@@ -109,7 +109,7 @@ public class CommitResponsePayload implements Payload {
     return commitId;
   }
 
-  public TableName tableName() {
+  public FullTableName tableName() {
     return tableName;
   }
 
@@ -134,7 +134,7 @@ public class CommitResponsePayload implements Payload {
         this.commitId = (UUID) v;
         return;
       case 1:
-        this.tableName = (TableName) v;
+        this.tableName = (FullTableName) v;
         return;
       case 2:
         this.dataFiles = (List<DataFile>) v;
