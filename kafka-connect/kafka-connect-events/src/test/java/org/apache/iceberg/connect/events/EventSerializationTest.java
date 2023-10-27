@@ -111,7 +111,7 @@ public class EventSerializationTest {
     assertThat(payload.commitId()).isEqualTo(commitId);
     assertThat(payload.tableName().toIdentifier()).isEqualTo(TableIdentifier.parse("db.tbl"));
     assertThat(payload.snapshotId()).isEqualTo(1L);
-    assertThat(payload.vtts()).isEqualTo(2L);
+    assertThat(payload.validThroughTs()).isEqualTo(2L);
   }
 
   @Test
@@ -127,6 +127,6 @@ public class EventSerializationTest {
     assertThat(result.type()).isEqualTo(event.type());
     CommitCompletePayload payload = (CommitCompletePayload) result.payload();
     assertThat(payload.commitId()).isEqualTo(commitId);
-    assertThat(payload.vtts()).isEqualTo(2L);
+    assertThat(payload.validThroughTs()).isEqualTo(2L);
   }
 }

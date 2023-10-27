@@ -31,7 +31,7 @@ import org.apache.iceberg.avro.AvroSchemaUtil;
 public class CommitCompletePayload implements Payload {
 
   private UUID commitId;
-  private Long vtts;
+  private Long validThroughTs;
   private final Schema avroSchema;
 
   private static final Schema AVRO_SCHEMA =
@@ -42,7 +42,7 @@ public class CommitCompletePayload implements Payload {
           .prop(AvroSchemaUtil.FIELD_ID_PROP, 1000)
           .type(UUID_SCHEMA)
           .noDefault()
-          .name("vtts")
+          .name("validThroughTs")
           .prop(AvroSchemaUtil.FIELD_ID_PROP, 1001)
           .type()
           .nullable()
@@ -55,9 +55,9 @@ public class CommitCompletePayload implements Payload {
     this.avroSchema = avroSchema;
   }
 
-  public CommitCompletePayload(UUID commitId, Long vtts) {
+  public CommitCompletePayload(UUID commitId, Long validThroughTs) {
     this.commitId = commitId;
-    this.vtts = vtts;
+    this.validThroughTs = validThroughTs;
     this.avroSchema = AVRO_SCHEMA;
   }
 
@@ -69,8 +69,8 @@ public class CommitCompletePayload implements Payload {
    * Valid-through timestamp, which is the min-of-max record timestamps across all workers for the
    * commit.
    */
-  public Long vtts() {
-    return vtts;
+  public Long validThroughTs() {
+    return validThroughTs;
   }
 
   @Override
@@ -86,7 +86,7 @@ public class CommitCompletePayload implements Payload {
         this.commitId = (UUID) v;
         return;
       case 1:
-        this.vtts = (Long) v;
+        this.validThroughTs = (Long) v;
         return;
       default:
         // ignore the object, it must be from a newer version of the format
@@ -99,7 +99,7 @@ public class CommitCompletePayload implements Payload {
       case 0:
         return commitId;
       case 1:
-        return vtts;
+        return validThroughTs;
       default:
         throw new UnsupportedOperationException("Unknown field ordinal: " + i);
     }

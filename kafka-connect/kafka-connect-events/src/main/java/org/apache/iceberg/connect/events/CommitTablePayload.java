@@ -33,7 +33,7 @@ public class CommitTablePayload implements Payload {
   private UUID commitId;
   private TableName tableName;
   private Long snapshotId;
-  private Long vtts;
+  private Long validThroughTs;
   private final Schema avroSchema;
 
   private static final Schema AVRO_SCHEMA =
@@ -54,7 +54,7 @@ public class CommitTablePayload implements Payload {
           .nullable()
           .longType()
           .noDefault()
-          .name("vtts")
+          .name("validThroughTs")
           .prop(AvroSchemaUtil.FIELD_ID_PROP, 1403)
           .type()
           .nullable()
@@ -67,11 +67,12 @@ public class CommitTablePayload implements Payload {
     this.avroSchema = avroSchema;
   }
 
-  public CommitTablePayload(UUID commitId, TableName tableName, Long snapshotId, Long vtts) {
+  public CommitTablePayload(
+      UUID commitId, TableName tableName, Long snapshotId, Long validThroughTs) {
     this.commitId = commitId;
     this.tableName = tableName;
     this.snapshotId = snapshotId;
-    this.vtts = vtts;
+    this.validThroughTs = validThroughTs;
     this.avroSchema = AVRO_SCHEMA;
   }
 
@@ -87,8 +88,8 @@ public class CommitTablePayload implements Payload {
     return snapshotId;
   }
 
-  public Long vtts() {
-    return vtts;
+  public Long validThroughTs() {
+    return validThroughTs;
   }
 
   @Override
@@ -110,7 +111,7 @@ public class CommitTablePayload implements Payload {
         this.snapshotId = (Long) v;
         return;
       case 3:
-        this.vtts = (Long) v;
+        this.validThroughTs = (Long) v;
         return;
       default:
         // ignore the object, it must be from a newer version of the format
@@ -127,7 +128,7 @@ public class CommitTablePayload implements Payload {
       case 2:
         return snapshotId;
       case 3:
-        return vtts;
+        return validThroughTs;
       default:
         throw new UnsupportedOperationException("Unknown field ordinal: " + i);
     }
