@@ -19,8 +19,13 @@
 package org.apache.iceberg.connect.events;
 
 import org.apache.avro.Schema;
-import org.apache.avro.SchemaBuilder;
 import org.apache.iceberg.avro.AvroSchemaUtil;
+import org.apache.iceberg.types.Types.IntegerType;
+import org.apache.iceberg.types.Types.LongType;
+import org.apache.iceberg.types.Types.NestedField;
+import org.apache.iceberg.types.Types.StringType;
+import org.apache.iceberg.types.Types.StructType;
+import org.apache.iceberg.types.Types.TimestampType;
 
 /** Element representing an offset, with topic name, partition number, and offset. */
 public class TopicPartitionOffset implements Element {
@@ -31,33 +36,14 @@ public class TopicPartitionOffset implements Element {
   private Long timestamp;
   private final Schema avroSchema;
 
-  public static final Schema AVRO_SCHEMA =
-      SchemaBuilder.builder()
-          .record(TopicPartitionOffset.class.getName())
-          .fields()
-          .name("topic")
-          .prop(AvroSchemaUtil.FIELD_ID_PROP, 1700)
-          .type()
-          .stringType()
-          .noDefault()
-          .name("partition")
-          .prop(AvroSchemaUtil.FIELD_ID_PROP, 1701)
-          .type()
-          .intType()
-          .noDefault()
-          .name("offset")
-          .prop(AvroSchemaUtil.FIELD_ID_PROP, 1702)
-          .type()
-          .nullable()
-          .longType()
-          .noDefault()
-          .name("timestamp")
-          .prop(AvroSchemaUtil.FIELD_ID_PROP, 1703)
-          .type()
-          .nullable()
-          .longType()
-          .noDefault()
-          .endRecord();
+  public static final StructType ICEBERG_SCHEMA =
+      StructType.of(
+          NestedField.required(10_700, "topic", StringType.get()),
+          NestedField.required(10_701, "partition", IntegerType.get()),
+          NestedField.optional(10_702, "offset", LongType.get()),
+          NestedField.optional(10_703, "timestamp", TimestampType.withZone()));
+
+  private static final Schema AVRO_SCHEMA = AvroSchemaUtil.convert(ICEBERG_SCHEMA);
 
   // Used by Avro reflection to instantiate this class when reading events
   public TopicPartitionOffset(Schema avroSchema) {
@@ -86,6 +72,11 @@ public class TopicPartitionOffset implements Element {
 
   public Long timestamp() {
     return timestamp;
+  }
+
+  @Override
+  public StructType writeSchema() {
+    return ICEBERG_SCHEMA;
   }
 
   @Override

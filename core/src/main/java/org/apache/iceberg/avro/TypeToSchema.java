@@ -21,6 +21,7 @@ package org.apache.iceberg.avro;
 import java.util.Deque;
 import java.util.List;
 import java.util.Map;
+import java.util.function.BiFunction;
 import org.apache.avro.JsonProperties;
 import org.apache.avro.LogicalTypes;
 import org.apache.avro.Schema;
@@ -56,10 +57,14 @@ class TypeToSchema extends TypeUtil.SchemaVisitor<Schema> {
 
   private final Deque<Integer> fieldIds = Lists.newLinkedList();
   private final Map<Type, Schema> results = Maps.newHashMap();
-  private final Map<Types.StructType, String> names;
+  private final BiFunction<Integer, Types.StructType, String> namesFunction;
+
+  TypeToSchema(BiFunction<Integer, Types.StructType, String> namesFunction) {
+    this.namesFunction = namesFunction;
+  }
 
   TypeToSchema(Map<Types.StructType, String> names) {
-    this.names = names;
+    this.namesFunction = (id, struct) -> names.get(struct);
   }
 
   Map<Type, Schema> getConversionMap() {
@@ -83,14 +88,17 @@ class TypeToSchema extends TypeUtil.SchemaVisitor<Schema> {
 
   @Override
   public Schema struct(Types.StructType struct, List<Schema> fieldSchemas) {
-    Schema recordSchema = results.get(struct);
-    if (recordSchema != null) {
-      return recordSchema;
-    }
+    // FIXME!!!
+    //    Schema recordSchema = results.get(struct);
+    //    if (recordSchema != null) {
+    //      return recordSchema;
+    //    }
+    Schema recordSchema;
 
-    String recordName = names.get(struct);
+    Integer fieldId = fieldIds.peek();
+    String recordName = namesFunction.apply(fieldId, struct);
     if (recordName == null) {
-      recordName = "r" + fieldIds.peek();
+      recordName = "r" + fieldId;
     }
 
     List<Types.NestedField> structFields = struct.fields();

@@ -19,10 +19,15 @@
 package org.apache.iceberg.connect.events;
 
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import org.apache.avro.Schema;
-import org.apache.avro.SchemaBuilder;
 import org.apache.iceberg.avro.AvroSchemaUtil;
+import org.apache.iceberg.relocated.com.google.common.collect.ImmutableMap;
+import org.apache.iceberg.types.Types.ListType;
+import org.apache.iceberg.types.Types.NestedField;
+import org.apache.iceberg.types.Types.StructType;
+import org.apache.iceberg.types.Types.UUIDType;
 
 /**
  * A control event payload for events sent by a worker that indicates it has finished sending all
@@ -34,22 +39,18 @@ public class CommitReadyPayload implements Payload {
   private List<TopicPartitionOffset> assignments;
   private final Schema avroSchema;
 
-  private static final Schema AVRO_SCHEMA =
-      SchemaBuilder.builder()
-          .record(CommitReadyPayload.class.getName())
-          .fields()
-          .name("commitId")
-          .prop(AvroSchemaUtil.FIELD_ID_PROP, 1100)
-          .type(UUID_SCHEMA)
-          .noDefault()
-          .name("assignments")
-          .prop(AvroSchemaUtil.FIELD_ID_PROP, 1101)
-          .type()
-          .nullable()
-          .array()
-          .items(TopicPartitionOffset.AVRO_SCHEMA)
-          .noDefault()
-          .endRecord();
+  private static final StructType ICEBERG_SCHEMA =
+      StructType.of(
+          NestedField.required(10_100, "commit_id", UUIDType.get()),
+          NestedField.optional(
+              10_101,
+              "assignments",
+              ListType.ofRequired(10_102, TopicPartitionOffset.ICEBERG_SCHEMA)));
+
+  private static final Map<Integer, String> TYPE_MAP =
+      ImmutableMap.of(10_102, TopicPartitionOffset.class.getName());
+
+  private static final Schema AVRO_SCHEMA = AvroSchemaUtil.convert(ICEBERG_SCHEMA);
 
   // Used by Avro reflection to instantiate this class when reading events
   public CommitReadyPayload(Schema avroSchema) {
@@ -69,6 +70,16 @@ public class CommitReadyPayload implements Payload {
   public List<TopicPartitionOffset> assignments() {
     return assignments;
   }
+
+  @Override
+  public StructType writeSchema() {
+    return ICEBERG_SCHEMA;
+  }
+
+  @Override
+  public Map<Integer, String> typeMap() {
+    return TYPE_MAP;
+  };
 
   @Override
   public Schema getSchema() {

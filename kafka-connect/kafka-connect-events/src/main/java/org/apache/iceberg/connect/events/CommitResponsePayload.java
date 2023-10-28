@@ -19,15 +19,18 @@
 package org.apache.iceberg.connect.events;
 
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import org.apache.avro.Schema;
-import org.apache.avro.SchemaBuilder;
 import org.apache.iceberg.DataFile;
 import org.apache.iceberg.DeleteFile;
 import org.apache.iceberg.PartitionData;
 import org.apache.iceberg.avro.AvroSchemaUtil;
 import org.apache.iceberg.relocated.com.google.common.collect.ImmutableMap;
+import org.apache.iceberg.types.Types.ListType;
+import org.apache.iceberg.types.Types.NestedField;
 import org.apache.iceberg.types.Types.StructType;
+import org.apache.iceberg.types.Types.UUIDType;
 
 /**
  * A control event payload for events sent by a worker that contains the table data that has been
@@ -39,11 +42,24 @@ public class CommitResponsePayload implements Payload {
   private TableReference tableReference;
   private List<DataFile> dataFiles;
   private List<DeleteFile> deleteFiles;
+  private final StructType icebergSchema;
   private final Schema avroSchema;
+
+  private static final Map<Integer, String> TYPE_MAP =
+      ImmutableMap.of(
+          DataFile.PARTITION_ID,
+          PartitionData.class.getName(),
+          10_301,
+          TableReference.class.getName(),
+          10_303,
+          "org.apache.iceberg.GenericDataFile",
+          10_305,
+          "org.apache.iceberg.GenericDeleteFile");
 
   // Used by Avro reflection to instantiate this class when reading events
   public CommitResponsePayload(Schema avroSchema) {
     this.avroSchema = avroSchema;
+    this.icebergSchema = AvroSchemaUtil.convert(avroSchema).asStructType();
   }
 
   public CommitResponsePayload(
@@ -58,51 +74,16 @@ public class CommitResponsePayload implements Payload {
     this.deleteFiles = deleteFiles;
 
     StructType dataFileStruct = DataFile.getType(partitionType);
-    Schema dataFileSchema =
-        AvroSchemaUtil.convert(
-            dataFileStruct,
-            ImmutableMap.of(
-                dataFileStruct,
-                "org.apache.iceberg.GenericDataFile",
-                partitionType,
-                PartitionData.class.getName()));
 
-    Schema deleteFileSchema =
-        AvroSchemaUtil.convert(
-            dataFileStruct,
-            ImmutableMap.of(
-                dataFileStruct,
-                "org.apache.iceberg.GenericDeleteFile",
-                partitionType,
-                PartitionData.class.getName()));
+    this.icebergSchema =
+        StructType.of(
+            NestedField.required(10_300, "commit_id", UUIDType.get()),
+            NestedField.required(10_301, "table_reference", TableReference.ICEBERG_SCHEMA),
+            NestedField.optional(10_302, "data_files", ListType.ofRequired(10_303, dataFileStruct)),
+            NestedField.optional(
+                10_304, "delete_files", ListType.ofRequired(10_305, dataFileStruct)));
 
-    this.avroSchema =
-        SchemaBuilder.builder()
-            .record(getClass().getName())
-            .fields()
-            .name("commitId")
-            .prop(AvroSchemaUtil.FIELD_ID_PROP, 1300)
-            .type(UUID_SCHEMA)
-            .noDefault()
-            .name("tableRef")
-            .prop(AvroSchemaUtil.FIELD_ID_PROP, 1301)
-            .type(TableReference.AVRO_SCHEMA)
-            .noDefault()
-            .name("dataFiles")
-            .prop(AvroSchemaUtil.FIELD_ID_PROP, 1302)
-            .type()
-            .nullable()
-            .array()
-            .items(dataFileSchema)
-            .noDefault()
-            .name("deleteFiles")
-            .prop(AvroSchemaUtil.FIELD_ID_PROP, 1303)
-            .type()
-            .nullable()
-            .array()
-            .items(deleteFileSchema)
-            .noDefault()
-            .endRecord();
+    this.avroSchema = AvroSchemaUtil.convert(icebergSchema);
   }
 
   public UUID commitId() {
@@ -119,6 +100,16 @@ public class CommitResponsePayload implements Payload {
 
   public List<DeleteFile> deleteFiles() {
     return deleteFiles;
+  }
+
+  @Override
+  public StructType writeSchema() {
+    return icebergSchema;
+  }
+
+  @Override
+  public Map<Integer, String> typeMap() {
+    return TYPE_MAP;
   }
 
   @Override

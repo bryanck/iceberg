@@ -23,11 +23,14 @@ import static java.util.stream.Collectors.toList;
 import java.util.Arrays;
 import java.util.List;
 import org.apache.avro.Schema;
-import org.apache.avro.SchemaBuilder;
 import org.apache.avro.util.Utf8;
 import org.apache.iceberg.avro.AvroSchemaUtil;
 import org.apache.iceberg.catalog.Namespace;
 import org.apache.iceberg.catalog.TableIdentifier;
+import org.apache.iceberg.types.Types.ListType;
+import org.apache.iceberg.types.Types.NestedField;
+import org.apache.iceberg.types.Types.StringType;
+import org.apache.iceberg.types.Types.StructType;
 
 /** Element representing a table identifier, with namespace and name. */
 public class TableReference implements Element {
@@ -37,28 +40,13 @@ public class TableReference implements Element {
   private String name;
   private final Schema avroSchema;
 
-  public static final Schema AVRO_SCHEMA =
-      SchemaBuilder.builder()
-          .record(TableReference.class.getName())
-          .fields()
-          .name("catalog")
-          .prop(AvroSchemaUtil.FIELD_ID_PROP, 1600)
-          .type()
-          .stringType()
-          .noDefault()
-          .name("namespace")
-          .prop(AvroSchemaUtil.FIELD_ID_PROP, 1601)
-          .type()
-          .array()
-          .items()
-          .stringType()
-          .noDefault()
-          .name("name")
-          .prop(AvroSchemaUtil.FIELD_ID_PROP, 1602)
-          .type()
-          .stringType()
-          .noDefault()
-          .endRecord();
+  public static final StructType ICEBERG_SCHEMA =
+      StructType.of(
+          NestedField.required(10_600, "catalog", StringType.get()),
+          NestedField.required(10_601, "namespace", ListType.ofRequired(10_602, StringType.get())),
+          NestedField.required(10_603, "name", StringType.get()));
+
+  private static final Schema AVRO_SCHEMA = AvroSchemaUtil.convert(ICEBERG_SCHEMA);
 
   public static TableReference of(String catalog, TableIdentifier tableIdentifier) {
     return new TableReference(
@@ -84,6 +72,11 @@ public class TableReference implements Element {
   public TableIdentifier identifier() {
     Namespace icebergNamespace = Namespace.of(namespace.toArray(new String[0]));
     return TableIdentifier.of(icebergNamespace, name);
+  }
+
+  @Override
+  public StructType writeSchema() {
+    return ICEBERG_SCHEMA;
   }
 
   @Override

@@ -21,6 +21,7 @@ package org.apache.iceberg.avro;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.BiFunction;
 import org.apache.avro.JsonProperties;
 import org.apache.avro.LogicalType;
 import org.apache.avro.LogicalTypes;
@@ -72,6 +73,11 @@ public class AvroSchemaUtil {
 
   public static Schema convert(Type type, Map<Types.StructType, String> names) {
     return TypeUtil.visit(type, new TypeToSchema(names));
+  }
+
+  public static Schema convert(
+      Type type, BiFunction<Integer, Types.StructType, String> namesFunction) {
+    return TypeUtil.visit(type, new TypeToSchema(namesFunction));
   }
 
   public static Type convert(Schema schema) {

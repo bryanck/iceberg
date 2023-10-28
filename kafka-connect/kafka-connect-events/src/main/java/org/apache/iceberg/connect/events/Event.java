@@ -20,12 +20,19 @@ package org.apache.iceberg.connect.events;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
+import java.util.Map;
 import java.util.UUID;
 import org.apache.avro.Schema;
-import org.apache.avro.SchemaBuilder;
 import org.apache.iceberg.avro.AvroEncoderUtil;
 import org.apache.iceberg.avro.AvroSchemaUtil;
 import org.apache.iceberg.data.avro.DecoderResolver;
+import org.apache.iceberg.relocated.com.google.common.collect.Maps;
+import org.apache.iceberg.types.Types.IntegerType;
+import org.apache.iceberg.types.Types.NestedField;
+import org.apache.iceberg.types.Types.StringType;
+import org.apache.iceberg.types.Types.StructType;
+import org.apache.iceberg.types.Types.TimestampType;
+import org.apache.iceberg.types.Types.UUIDType;
 
 /**
  * Class representing all events produced to the control topic. Different event types have different
@@ -38,6 +45,7 @@ public class Event implements Element {
   private Long timestamp;
   private String groupId;
   private Payload payload;
+  private final StructType icebergSchema;
   private final Schema avroSchema;
 
   public static byte[] encode(Event event) {
@@ -62,6 +70,7 @@ public class Event implements Element {
   // Used by Avro reflection to instantiate this class when reading events
   public Event(Schema avroSchema) {
     this.avroSchema = avroSchema;
+    this.icebergSchema = AvroSchemaUtil.convert(avroSchema).asStructType();
   }
 
   public Event(String groupId, EventType type, Payload payload) {
@@ -71,34 +80,22 @@ public class Event implements Element {
     this.groupId = groupId;
     this.payload = payload;
 
+    this.icebergSchema =
+        StructType.of(
+            NestedField.required(10_500, "id", UUIDType.get()),
+            NestedField.required(10_501, "type", IntegerType.get()),
+            NestedField.required(10_502, "timestamp", TimestampType.withZone()),
+            NestedField.required(10_503, "group_id", StringType.get()),
+            NestedField.required(10_504, "payload", payload.writeSchema()));
+
+    Map<Integer, String> typeMap = Maps.newHashMap(payload.typeMap());
+    typeMap.put(10_504, payload.getClass().getName());
+
     this.avroSchema =
-        SchemaBuilder.builder()
-            .record(getClass().getName())
-            .fields()
-            .name("id")
-            .prop(AvroSchemaUtil.FIELD_ID_PROP, 1500)
-            .type(UUID_SCHEMA)
-            .noDefault()
-            .name("type")
-            .prop(AvroSchemaUtil.FIELD_ID_PROP, 1501)
-            .type()
-            .intType()
-            .noDefault()
-            .name("timestamp")
-            .prop(AvroSchemaUtil.FIELD_ID_PROP, 1502)
-            .type()
-            .longType()
-            .noDefault()
-            .name("payload")
-            .prop(AvroSchemaUtil.FIELD_ID_PROP, 1503)
-            .type(payload.getSchema())
-            .noDefault()
-            .name("groupId")
-            .prop(AvroSchemaUtil.FIELD_ID_PROP, 1504)
-            .type()
-            .stringType()
-            .noDefault()
-            .endRecord();
+        AvroSchemaUtil.convert(
+            icebergSchema,
+            (id, struct) -> struct.equals(icebergSchema) ? getClass().getName() : typeMap.get(id));
+    int x = 0;
   }
 
   public UUID id() {
@@ -122,6 +119,11 @@ public class Event implements Element {
   }
 
   @Override
+  public StructType writeSchema() {
+    return icebergSchema;
+  }
+
+  @Override
   public Schema getSchema() {
     return avroSchema;
   }
@@ -139,10 +141,10 @@ public class Event implements Element {
         this.timestamp = (Long) v;
         return;
       case 3:
-        this.payload = (Payload) v;
+        this.groupId = v == null ? null : v.toString();
         return;
       case 4:
-        this.groupId = v == null ? null : v.toString();
+        this.payload = (Payload) v;
         return;
       default:
         // ignore the object, it must be from a newer version of the format
@@ -159,9 +161,9 @@ public class Event implements Element {
       case 2:
         return timestamp;
       case 3:
-        return payload;
-      case 4:
         return groupId;
+      case 4:
+        return payload;
       default:
         throw new UnsupportedOperationException("Unknown field ordinal: " + i);
     }

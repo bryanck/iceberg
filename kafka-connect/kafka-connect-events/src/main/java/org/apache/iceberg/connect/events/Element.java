@@ -18,13 +18,17 @@
  */
 package org.apache.iceberg.connect.events;
 
-import org.apache.avro.LogicalTypes;
-import org.apache.avro.Schema;
-import org.apache.avro.SchemaBuilder;
+import java.util.Map;
 import org.apache.avro.generic.IndexedRecord;
+import org.apache.iceberg.relocated.com.google.common.collect.ImmutableMap;
+import org.apache.iceberg.types.Types.StructType;
 
 /** Interface for complex types that will be used in an event schema. */
 public interface Element extends IndexedRecord {
-  Schema UUID_SCHEMA =
-      LogicalTypes.uuid().addToSchema(SchemaBuilder.builder().fixed("uuid").size(16));
+
+  StructType writeSchema();
+
+  default Map<Integer, String> typeMap() {
+    return ImmutableMap.of();
+  }
 }

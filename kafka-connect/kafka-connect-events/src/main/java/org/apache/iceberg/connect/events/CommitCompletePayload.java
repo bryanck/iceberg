@@ -18,10 +18,15 @@
  */
 package org.apache.iceberg.connect.events;
 
+import java.util.Map;
 import java.util.UUID;
 import org.apache.avro.Schema;
-import org.apache.avro.SchemaBuilder;
 import org.apache.iceberg.avro.AvroSchemaUtil;
+import org.apache.iceberg.relocated.com.google.common.collect.ImmutableMap;
+import org.apache.iceberg.types.Types.NestedField;
+import org.apache.iceberg.types.Types.StructType;
+import org.apache.iceberg.types.Types.TimestampType;
+import org.apache.iceberg.types.Types.UUIDType;
 
 /**
  * A control event payload for events sent by a coordinator that indicates it has completed a commit
@@ -34,21 +39,12 @@ public class CommitCompletePayload implements Payload {
   private Long validThroughTs;
   private final Schema avroSchema;
 
-  private static final Schema AVRO_SCHEMA =
-      SchemaBuilder.builder()
-          .record(CommitCompletePayload.class.getName())
-          .fields()
-          .name("commitId")
-          .prop(AvroSchemaUtil.FIELD_ID_PROP, 1000)
-          .type(UUID_SCHEMA)
-          .noDefault()
-          .name("validThroughTs")
-          .prop(AvroSchemaUtil.FIELD_ID_PROP, 1001)
-          .type()
-          .nullable()
-          .longType()
-          .noDefault()
-          .endRecord();
+  private static final StructType ICEBERG_SCHEMA =
+      StructType.of(
+          NestedField.required(10_000, "commit_id", UUIDType.get()),
+          NestedField.optional(10_001, "valid_through_ts", TimestampType.withZone()));
+
+  private static final Schema AVRO_SCHEMA = AvroSchemaUtil.convert(ICEBERG_SCHEMA);
 
   // Used by Avro reflection to instantiate this class when reading events
   public CommitCompletePayload(Schema avroSchema) {
@@ -72,6 +68,16 @@ public class CommitCompletePayload implements Payload {
   public Long validThroughTs() {
     return validThroughTs;
   }
+
+  @Override
+  public StructType writeSchema() {
+    return ICEBERG_SCHEMA;
+  }
+
+  @Override
+  public Map<Integer, String> typeMap() {
+    return ImmutableMap.of();
+  };
 
   @Override
   public Schema getSchema() {
