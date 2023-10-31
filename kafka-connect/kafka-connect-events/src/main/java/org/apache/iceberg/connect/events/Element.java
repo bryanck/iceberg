@@ -18,17 +18,11 @@
  */
 package org.apache.iceberg.connect.events;
 
-import java.util.Map;
 import org.apache.avro.generic.IndexedRecord;
-import org.apache.iceberg.relocated.com.google.common.collect.ImmutableMap;
 import org.apache.iceberg.types.Types.StructType;
 
 /** Interface for complex types that will be used in an event schema. */
 public interface Element extends IndexedRecord {
 
   StructType writeSchema();
-
-  default Map<Integer, String> typeMap() {
-    return ImmutableMap.of();
-  }
 }

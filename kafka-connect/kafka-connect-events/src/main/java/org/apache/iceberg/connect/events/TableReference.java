@@ -24,7 +24,6 @@ import java.util.Arrays;
 import java.util.List;
 import org.apache.avro.Schema;
 import org.apache.avro.util.Utf8;
-import org.apache.iceberg.avro.AvroSchemaUtil;
 import org.apache.iceberg.catalog.Namespace;
 import org.apache.iceberg.catalog.TableIdentifier;
 import org.apache.iceberg.types.Types.ListType;
@@ -46,7 +45,7 @@ public class TableReference implements Element {
           NestedField.required(10_601, "namespace", ListType.ofRequired(10_602, StringType.get())),
           NestedField.required(10_603, "name", StringType.get()));
 
-  private static final Schema AVRO_SCHEMA = AvroSchemaUtil.convert(ICEBERG_SCHEMA);
+  private static final Schema AVRO_SCHEMA = AvroUtil.convert(ICEBERG_SCHEMA);
 
   public static TableReference of(String catalog, TableIdentifier tableIdentifier) {
     return new TableReference(

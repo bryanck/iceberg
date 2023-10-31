@@ -19,7 +19,6 @@
 package org.apache.iceberg.connect.events;
 
 import org.apache.avro.Schema;
-import org.apache.iceberg.avro.AvroSchemaUtil;
 import org.apache.iceberg.types.Types.IntegerType;
 import org.apache.iceberg.types.Types.LongType;
 import org.apache.iceberg.types.Types.NestedField;
@@ -43,7 +42,7 @@ public class TopicPartitionOffset implements Element {
           NestedField.optional(10_702, "offset", LongType.get()),
           NestedField.optional(10_703, "timestamp", TimestampType.withZone()));
 
-  private static final Schema AVRO_SCHEMA = AvroSchemaUtil.convert(ICEBERG_SCHEMA);
+  private static final Schema AVRO_SCHEMA = AvroUtil.convert(ICEBERG_SCHEMA);
 
   // Used by Avro reflection to instantiate this class when reading events
   public TopicPartitionOffset(Schema avroSchema) {

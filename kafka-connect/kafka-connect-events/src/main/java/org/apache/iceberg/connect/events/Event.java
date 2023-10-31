@@ -88,14 +88,14 @@ public class Event implements Element {
             NestedField.required(10_503, "group_id", StringType.get()),
             NestedField.required(10_504, "payload", payload.writeSchema()));
 
-    Map<Integer, String> typeMap = Maps.newHashMap(payload.typeMap());
+    Map<Integer, String> typeMap = Maps.newHashMap(AvroUtil.FIELD_ID_TO_CLASS);
     typeMap.put(10_504, payload.getClass().getName());
 
     this.avroSchema =
         AvroSchemaUtil.convert(
             icebergSchema,
-            (id, struct) -> struct.equals(icebergSchema) ? getClass().getName() : typeMap.get(id));
-    int x = 0;
+            (fieldId, struct) ->
+                struct.equals(icebergSchema) ? getClass().getName() : typeMap.get(fieldId));
   }
 
   public UUID id() {

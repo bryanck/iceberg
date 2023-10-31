@@ -19,14 +19,11 @@
 package org.apache.iceberg.connect.events;
 
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
 import org.apache.avro.Schema;
 import org.apache.iceberg.DataFile;
 import org.apache.iceberg.DeleteFile;
-import org.apache.iceberg.PartitionData;
 import org.apache.iceberg.avro.AvroSchemaUtil;
-import org.apache.iceberg.relocated.com.google.common.collect.ImmutableMap;
 import org.apache.iceberg.types.Types.ListType;
 import org.apache.iceberg.types.Types.NestedField;
 import org.apache.iceberg.types.Types.StructType;
@@ -42,24 +39,12 @@ public class CommitResponsePayload implements Payload {
   private TableReference tableReference;
   private List<DataFile> dataFiles;
   private List<DeleteFile> deleteFiles;
-  private final StructType icebergSchema;
+  private StructType icebergSchema;
   private final Schema avroSchema;
-
-  private static final Map<Integer, String> TYPE_MAP =
-      ImmutableMap.of(
-          DataFile.PARTITION_ID,
-          PartitionData.class.getName(),
-          10_301,
-          TableReference.class.getName(),
-          10_303,
-          "org.apache.iceberg.GenericDataFile",
-          10_305,
-          "org.apache.iceberg.GenericDeleteFile");
 
   // Used by Avro reflection to instantiate this class when reading events
   public CommitResponsePayload(Schema avroSchema) {
     this.avroSchema = avroSchema;
-    this.icebergSchema = AvroSchemaUtil.convert(avroSchema).asStructType();
   }
 
   public CommitResponsePayload(
@@ -83,7 +68,7 @@ public class CommitResponsePayload implements Payload {
             NestedField.optional(
                 10_304, "delete_files", ListType.ofRequired(10_305, dataFileStruct)));
 
-    this.avroSchema = AvroSchemaUtil.convert(icebergSchema);
+    this.avroSchema = AvroUtil.convert(icebergSchema);
   }
 
   public UUID commitId() {
@@ -104,12 +89,10 @@ public class CommitResponsePayload implements Payload {
 
   @Override
   public StructType writeSchema() {
+    if (icebergSchema == null) {
+      this.icebergSchema = AvroSchemaUtil.convert(avroSchema).asStructType();
+    }
     return icebergSchema;
-  }
-
-  @Override
-  public Map<Integer, String> typeMap() {
-    return TYPE_MAP;
   }
 
   @Override

@@ -18,11 +18,8 @@
  */
 package org.apache.iceberg.connect.events;
 
-import java.util.Map;
 import java.util.UUID;
 import org.apache.avro.Schema;
-import org.apache.iceberg.avro.AvroSchemaUtil;
-import org.apache.iceberg.relocated.com.google.common.collect.ImmutableMap;
 import org.apache.iceberg.types.Types.NestedField;
 import org.apache.iceberg.types.Types.StructType;
 import org.apache.iceberg.types.Types.UUIDType;
@@ -39,7 +36,7 @@ public class CommitRequestPayload implements Payload {
   private static final StructType ICEBERG_SCHEMA =
       StructType.of(NestedField.required(10_200, "commit_id", UUIDType.get()));
 
-  private static final Schema AVRO_SCHEMA = AvroSchemaUtil.convert(ICEBERG_SCHEMA);
+  private static final Schema AVRO_SCHEMA = AvroUtil.convert(ICEBERG_SCHEMA);
 
   // Used by Avro reflection to instantiate this class when reading events
   public CommitRequestPayload(Schema avroSchema) {
@@ -59,11 +56,6 @@ public class CommitRequestPayload implements Payload {
   public StructType writeSchema() {
     return ICEBERG_SCHEMA;
   }
-
-  @Override
-  public Map<Integer, String> typeMap() {
-    return ImmutableMap.of();
-  };
 
   @Override
   public Schema getSchema() {

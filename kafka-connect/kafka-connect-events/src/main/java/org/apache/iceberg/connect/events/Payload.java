@@ -19,7 +19,7 @@
 package org.apache.iceberg.connect.events;
 
 /**
- * Marker interface for an element that is an event payload. Different event types contain different
+ * Interface for an element that is an event payload. Different event types contain different
  * payloads.
  */
 public interface Payload extends Element {}
