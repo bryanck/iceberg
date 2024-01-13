@@ -25,7 +25,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import org.apache.iceberg.connect.IcebergSinkConfig;
-import org.apache.iceberg.connect.data.Offset;
 import org.apache.iceberg.connect.events.AvroUtil;
 import org.apache.iceberg.connect.events.Event;
 import org.apache.iceberg.relocated.com.google.common.collect.ImmutableList;

@@ -33,7 +33,6 @@ import java.util.UUID;
 import java.util.concurrent.ExecutionException;
 import org.apache.iceberg.connect.IcebergSinkConfig;
 import org.apache.iceberg.connect.data.IcebergWriterFactory;
-import org.apache.iceberg.connect.data.Offset;
 import org.apache.iceberg.connect.data.RecordWriter;
 import org.apache.iceberg.connect.data.Utilities;
 import org.apache.iceberg.connect.data.WriterResult;

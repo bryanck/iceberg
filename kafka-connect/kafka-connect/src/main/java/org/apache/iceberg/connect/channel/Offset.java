@@ -16,29 +16,39 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.iceberg.connect.data;
+package org.apache.iceberg.connect.channel;
 
-import static org.assertj.core.api.Assertions.assertThat;
+import java.time.OffsetDateTime;
+import java.util.Objects;
 
-import org.junit.jupiter.api.Test;
+public class Offset implements Comparable<Offset> {
 
-public class OffsetTest {
+  public static final Offset NULL_OFFSET = new Offset(null, null);
 
-  @Test
-  public void testOffsetEquals() {
-    assertThat(new Offset(null, null).compareTo(new Offset(null, null))).isEqualTo(0);
-    assertThat(new Offset(1L, null).compareTo(new Offset(1L, null))).isEqualTo(0);
+  private final Long offset;
+  private final OffsetDateTime timestamp;
+
+  public Offset(Long offset, OffsetDateTime timestamp) {
+    this.offset = offset;
+    this.timestamp = timestamp;
   }
 
-  @Test
-  public void testOffsetLessThan() {
-    assertThat(new Offset(null, null).compareTo(new Offset(1L, null))).isEqualTo(-1);
-    assertThat(new Offset(1L, null).compareTo(new Offset(2L, null))).isEqualTo(-1);
+  public Long offset() {
+    return offset;
   }
 
-  @Test
-  public void testOffsetGreaterThan() {
-    assertThat(new Offset(1L, null).compareTo(new Offset(null, null))).isEqualTo(1);
-    assertThat(new Offset(2L, null).compareTo(new Offset(1L, null))).isEqualTo(1);
+  public OffsetDateTime timestamp() {
+    return timestamp;
+  }
+
+  @Override
+  public int compareTo(Offset other) {
+    if (Objects.equals(this.offset, other.offset)) {
+      return 0;
+    }
+    if (this.offset == null || (other.offset != null && other.offset > this.offset)) {
+      return -1;
+    }
+    return 1;
   }
 }
