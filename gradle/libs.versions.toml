@@ -217,7 +217,6 @@ spring-boot-starter-web = { module = "org.springframework.boot:spring-boot-start
 spring-web = { module = "org.springframework:spring-web", version.ref = "spring-web" }
 sqlite-jdbc = { module = "org.xerial:sqlite-jdbc", version.ref = "sqlite-jdbc" }
 testcontainers = { module = "org.testcontainers:testcontainers", version.ref = "testcontainers" }
-testcontainers-kafka = { module = "org.testcontainers:kafka", version.ref = "testcontainers" }
 tez010-dag = { module = "org.apache.tez:tez-dag", version.ref = "tez010" }
 tez010-mapreduce = { module = "org.apache.tez:tez-mapreduce", version.ref = "tez010" }
 tez08-dag = { module = "org.apache.tez:tez-dag", version.ref = "tez08" }

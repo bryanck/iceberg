@@ -18,12 +18,9 @@
  */
 package org.apache.iceberg.connect;
 
-import static org.apache.iceberg.connect.TestConstants.MAPPER;
-
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import java.io.IOException;
-import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
@@ -37,14 +34,10 @@ import org.apache.hc.core5.http.io.entity.StringEntity;
 import org.apache.iceberg.relocated.com.google.common.collect.Lists;
 import org.apache.iceberg.relocated.com.google.common.collect.Maps;
 import org.awaitility.Awaitility;
-import org.testcontainers.containers.GenericContainer;
-import org.testcontainers.containers.wait.strategy.HttpWaitStrategy;
-import org.testcontainers.utility.DockerImageName;
 
-public class KafkaConnectContainer extends GenericContainer<KafkaConnectContainer> {
+public class KafkaConnectUtils {
 
   private static final HttpClient HTTP = HttpClients.createDefault();
-  private static final int PORT = 8083;
 
   // JavaBean-style for serialization
   public static class Config {
@@ -70,33 +63,11 @@ public class KafkaConnectContainer extends GenericContainer<KafkaConnectContaine
     }
   }
 
-  public KafkaConnectContainer(DockerImageName dockerImageName) {
-    super(dockerImageName);
-    this.withExposedPorts(PORT);
-    this.withEnv("CONNECT_GROUP_ID", "kc");
-    this.withEnv("CONNECT_CONFIG_STORAGE_TOPIC", "kc_config");
-    this.withEnv("CONNECT_CONFIG_STORAGE_REPLICATION_FACTOR", "1");
-    this.withEnv("CONNECT_OFFSET_STORAGE_TOPIC", "kc_offsets");
-    this.withEnv("CONNECT_OFFSET_STORAGE_REPLICATION_FACTOR", "1");
-    this.withEnv("CONNECT_STATUS_STORAGE_TOPIC", "kc_status");
-    this.withEnv("CONNECT_STATUS_STORAGE_REPLICATION_FACTOR", "1");
-    this.withEnv("CONNECT_KEY_CONVERTER", "org.apache.kafka.connect.json.JsonConverter");
-    this.withEnv("CONNECT_KEY_CONVERTER_SCHEMAS_ENABLE", "false");
-    this.withEnv("CONNECT_VALUE_CONVERTER", "org.apache.kafka.connect.json.JsonConverter");
-    this.withEnv("CONNECT_VALUE_CONVERTER_SCHEMAS_ENABLE", "false");
-    this.withEnv("CONNECT_REST_ADVERTISED_HOST_NAME", "localhost");
-    this.setWaitStrategy(
-        new HttpWaitStrategy()
-            .forPath("/connectors")
-            .forPort(PORT)
-            .withStartupTimeout(Duration.ofSeconds(30)));
-  }
-
-  public void startConnector(Config config) {
+  public static void startConnector(Config config) {
     try {
       HttpPost request =
-          new HttpPost(String.format("http://localhost:%d/connectors", getMappedPort(PORT)));
-      String body = MAPPER.writeValueAsString(config);
+          new HttpPost(String.format("http://localhost:%d/connectors", TestContext.CONNECT_PORT));
+      String body = TestContext.MAPPER.writeValueAsString(config);
       request.setHeader("Content-Type", "application/json");
       request.setEntity(new StringEntity(body));
       HTTP.execute(request, response -> null);
@@ -105,10 +76,11 @@ public class KafkaConnectContainer extends GenericContainer<KafkaConnectContaine
     }
   }
 
-  public void ensureConnectorRunning(String name) {
+  public static void ensureConnectorRunning(String name) {
     HttpGet request =
         new HttpGet(
-            String.format("http://localhost:%d/connectors/%s/status", getMappedPort(PORT), name));
+            String.format(
+                "http://localhost:%d/connectors/%s/status", TestContext.CONNECT_PORT, name));
     Awaitility.await()
         .atMost(60, TimeUnit.SECONDS)
         .until(
@@ -117,7 +89,8 @@ public class KafkaConnectContainer extends GenericContainer<KafkaConnectContaine
                     request,
                     response -> {
                       if (response.getCode() == HttpStatus.SC_OK) {
-                        JsonNode root = MAPPER.readTree(response.getEntity().getContent());
+                        JsonNode root =
+                            TestContext.MAPPER.readTree(response.getEntity().getContent());
                         String connectorState = root.get("connector").get("state").asText();
                         ArrayNode taskNodes = (ArrayNode) root.get("tasks");
                         List<String> taskStates = Lists.newArrayList();
@@ -129,14 +102,16 @@ public class KafkaConnectContainer extends GenericContainer<KafkaConnectContaine
                     }));
   }
 
-  public void stopConnector(String name) {
+  public static void stopConnector(String name) {
     try {
       HttpDelete request =
           new HttpDelete(
-              String.format("http://localhost:%d/connectors/%s", getMappedPort(PORT), name));
+              String.format("http://localhost:%d/connectors/%s", TestContext.CONNECT_PORT, name));
       HTTP.execute(request, response -> null);
     } catch (IOException e) {
       throw new RuntimeException(e);
     }
   }
+
+  private KafkaConnectUtils() {}
 }

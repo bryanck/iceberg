@@ -85,8 +85,8 @@ public class IntegrationMultiTableTest extends IntegrationTestBase {
 
   private void runTest(String branch, boolean useSchema) {
     // set offset reset to earliest so we don't miss any test messages
-    KafkaConnectContainer.Config connectorConfig =
-        new KafkaConnectContainer.Config(connectorName)
+    KafkaConnectUtils.Config connectorConfig =
+        new KafkaConnectUtils.Config(connectorName)
             .config("topics", testTopic)
             .config("connector.class", IcebergSinkConnector.class.getName())
             .config("tasks.max", 2)
