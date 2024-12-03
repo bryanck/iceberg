@@ -99,7 +99,7 @@ public class SinkWriter {
               });
 
     } else {
-      String routeValue = extractRouteValue(record.value(), routeField);
+      String routeValue = extractRouteValue(record, routeField);
       if (routeValue != null) {
         config
             .tables()
@@ -118,18 +118,21 @@ public class SinkWriter {
     String routeField = config.tablesRouteField();
     Preconditions.checkNotNull(routeField, "Route field cannot be null with dynamic routing");
 
-    String routeValue = extractRouteValue(record.value(), routeField);
+    String routeValue = extractRouteValue(record, routeField);
     if (routeValue != null) {
       String tableName = routeValue.toLowerCase(Locale.ROOT);
       writerForTable(tableName, record, true).write(record);
     }
   }
 
-  private String extractRouteValue(Object recordValue, String routeField) {
-    if (recordValue == null) {
+  private String extractRouteValue(SinkRecord record, String routeField) {
+    if (routeField.equals("__TOPIC")) {
+      return record.topic();
+    }
+    if (record.value() == null) {
       return null;
     }
-    Object routeValue = RecordUtils.extractFromRecordValue(recordValue, routeField);
+    Object routeValue = RecordUtils.extractFromRecordValue(record.value(), routeField);
     return routeValue == null ? null : routeValue.toString();
   }
 
