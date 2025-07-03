@@ -20,8 +20,6 @@ package org.apache.iceberg.spark.actions;
 
 import java.util.Map;
 import java.util.Set;
-import java.util.function.Predicate;
-import org.apache.iceberg.DataFile;
 import org.apache.iceberg.Table;
 import org.apache.iceberg.actions.BinPackRewriteFilePlanner;
 import org.apache.iceberg.expressions.Expression;
@@ -53,7 +51,7 @@ class SparkShufflingDataRewritePlanner extends BinPackRewriteFilePlanner {
   SparkShufflingDataRewritePlanner(
       Table table,
       Expression filter,
-      Predicate<DataFile> fileFilter,
+      Expression fileFilter,
       Long snapshotId,
       boolean caseSensitive) {
     super(table, filter, fileFilter, snapshotId, caseSensitive);

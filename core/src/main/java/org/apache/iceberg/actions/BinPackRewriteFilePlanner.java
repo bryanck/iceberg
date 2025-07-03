@@ -23,7 +23,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import org.apache.iceberg.ContentFile;
 import org.apache.iceberg.DataFile;
@@ -39,7 +38,6 @@ import org.apache.iceberg.expressions.Expression;
 import org.apache.iceberg.expressions.Expressions;
 import org.apache.iceberg.io.CloseableIterable;
 import org.apache.iceberg.relocated.com.google.common.base.Preconditions;
-import org.apache.iceberg.relocated.com.google.common.base.Predicates;
 import org.apache.iceberg.relocated.com.google.common.collect.ImmutableList;
 import org.apache.iceberg.relocated.com.google.common.collect.ImmutableSet;
 import org.apache.iceberg.relocated.com.google.common.collect.Iterables;
@@ -96,7 +94,7 @@ public class BinPackRewriteFilePlanner
   private static final Logger LOG = LoggerFactory.getLogger(BinPackRewriteFilePlanner.class);
 
   private final Expression filter;
-  private final Predicate<DataFile> fileFilter;
+  private final Expression fileFilter;
   private final Long snapshotId;
   private final boolean caseSensitive;
 
@@ -113,14 +111,14 @@ public class BinPackRewriteFilePlanner
     this(
         table,
         filter,
-        Predicates.alwaysTrue(),
+        Expressions.alwaysTrue(),
         table.currentSnapshot() != null ? table.currentSnapshot().snapshotId() : null,
         false);
   }
 
   public BinPackRewriteFilePlanner(
       Table table, Expression filter, Long snapshotId, boolean caseSensitive) {
-    this(table, filter, Predicates.alwaysTrue(), snapshotId, caseSensitive);
+    this(table, filter, Expressions.alwaysTrue(), snapshotId, caseSensitive);
   }
 
   /**
@@ -136,7 +134,7 @@ public class BinPackRewriteFilePlanner
   public BinPackRewriteFilePlanner(
       Table table,
       Expression filter,
-      Predicate<DataFile> fileFilter,
+      Expression fileFilter,
       Long snapshotId,
       boolean caseSensitive) {
     super(table);
@@ -300,15 +298,18 @@ public class BinPackRewriteFilePlanner
 
   private StructLikeMap<List<List<FileScanTask>>> planFileGroups() {
     TableScan scan =
-        table().newScan().filter(filter).caseSensitive(caseSensitive).ignoreResiduals();
+        table()
+            .newScan()
+            .filter(filter)
+            .fileFilter(fileFilter)
+            .caseSensitive(caseSensitive)
+            .ignoreResiduals();
 
     if (snapshotId != null) {
       scan = scan.useSnapshot(snapshotId);
     }
 
-    CloseableIterable<FileScanTask> fileScanTasks =
-        CloseableIterable.filter(
-            scan.planFiles(), fileScanTask -> fileFilter.test(fileScanTask.file()));
+    CloseableIterable<FileScanTask> fileScanTasks = scan.planFiles();
 
     try {
       Types.StructType partitionType = table().spec().partitionType();

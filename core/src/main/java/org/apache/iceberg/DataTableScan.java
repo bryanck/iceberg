@@ -74,6 +74,7 @@ public class DataTableScan extends BaseTableScan {
             .caseSensitive(isCaseSensitive())
             .select(scanColumns())
             .filterData(filter())
+            .filterFiles(fileFilter())
             .specsById(table().specs())
             .scanMetrics(scanMetrics())
             .ignoreDeleted()

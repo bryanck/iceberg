@@ -262,7 +262,7 @@ public class TestRewriteDataFilesAction extends TestBase {
 
     Result result =
         basicRewrite(table)
-            .fileFilter(file -> !file.location().equals(firstFileLocation))
+            .fileFilter(Expressions.notEqual("file_path", firstFileLocation))
             .execute();
 
     assertThat(result.rewrittenDataFilesCount())

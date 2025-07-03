@@ -46,6 +46,11 @@ abstract class TableScanContext {
   }
 
   @Value.Default
+  public Expression fileFilter() {
+    return Expressions.alwaysTrue();
+  }
+
+  @Value.Default
   public boolean ignoreResiduals() {
     return false;
   }
@@ -109,6 +114,10 @@ abstract class TableScanContext {
 
   TableScanContext filterRows(Expression filter) {
     return ImmutableTableScanContext.builder().from(this).rowFilter(filter).build();
+  }
+
+  TableScanContext filterFiles(Expression filter) {
+    return ImmutableTableScanContext.builder().from(this).fileFilter(filter).build();
   }
 
   TableScanContext ignoreResiduals(boolean shouldIgnoreResiduals) {

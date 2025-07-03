@@ -204,6 +204,17 @@ abstract class BaseScan<ThisT, T extends ScanTask, G extends ScanTaskGroup<T>>
   }
 
   @Override
+  public ThisT fileFilter(Expression expr) {
+    return newRefinedScan(
+        table, schema, context.filterFiles(Expressions.and(context.fileFilter(), expr)));
+  }
+
+  @Override
+  public Expression fileFilter() {
+    return context().fileFilter();
+  }
+
+  @Override
   public ThisT ignoreResiduals() {
     return newRefinedScan(table, schema, context.ignoreResiduals(true));
   }

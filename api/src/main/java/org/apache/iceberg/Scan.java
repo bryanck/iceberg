@@ -128,6 +128,25 @@ public interface Scan<ThisT, T extends ScanTask, G extends ScanTaskGroup<T>> {
   Expression filter();
 
   /**
+   * Create a new scan from the results of this filtered by the {@link Expression}.
+   *
+   * @param expr a file filter expression
+   * @return a new scan based on this with results filtered by the expression
+   */
+  default ThisT fileFilter(Expression expr) {
+    throw new UnsupportedOperationException("File filter not supported");
+  }
+
+  /**
+   * Returns this scan's file filter {@link Expression}.
+   *
+   * @return this scan's file filter expression
+   */
+  default Expression fileFilter() {
+    throw new UnsupportedOperationException("File filter not supported");
+  }
+
+  /**
    * Create a new scan from this that applies data filtering to files but not to rows in those
    * files.
    *

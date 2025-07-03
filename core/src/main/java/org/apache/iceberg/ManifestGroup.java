@@ -259,7 +259,9 @@ class ManifestGroup {
 
     Evaluator evaluator;
     if (fileFilter != null && fileFilter != Expressions.alwaysTrue()) {
-      evaluator = new Evaluator(DataFile.getType(EMPTY_STRUCT), fileFilter, caseSensitive);
+      Types.StructType dataFileSchema =
+          DataFile.getType(EMPTY_STRUCT).asSchema().select(columns).asStruct();
+      evaluator = new Evaluator(dataFileSchema, fileFilter, caseSensitive);
     } else {
       evaluator = null;
     }

@@ -29,7 +29,6 @@ import org.apache.iceberg.Table;
 import org.apache.iceberg.actions.RewriteDataFiles;
 import org.apache.iceberg.catalog.TableIdentifier;
 import org.apache.iceberg.expressions.Expressions;
-import org.apache.iceberg.relocated.com.google.common.base.Predicates;
 import org.apache.iceberg.relocated.com.google.common.collect.ImmutableMap;
 import org.apache.iceberg.relocated.com.google.common.collect.ImmutableSet;
 import org.apache.iceberg.spark.TestBase;
@@ -62,7 +61,7 @@ public class TestSparkShufflingDataRewritePlanner extends TestBase {
         new SparkShufflingDataRewritePlanner(
             table,
             Expressions.alwaysTrue(),
-            Predicates.alwaysTrue(),
+            Expressions.alwaysTrue(),
             null,
             false /* caseSensitive */);
 
@@ -90,7 +89,7 @@ public class TestSparkShufflingDataRewritePlanner extends TestBase {
         new SparkShufflingDataRewritePlanner(
             table,
             Expressions.alwaysTrue(),
-            Predicates.alwaysTrue(),
+            Expressions.alwaysTrue(),
             null,
             false /* caseSensitive */);
 

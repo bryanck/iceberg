@@ -19,8 +19,6 @@
 package org.apache.iceberg.actions;
 
 import java.util.List;
-import java.util.function.Predicate;
-import org.apache.iceberg.DataFile;
 import org.apache.iceberg.RewriteJobOrder;
 import org.apache.iceberg.SortOrder;
 import org.apache.iceberg.StructLike;
@@ -191,23 +189,28 @@ public interface RewriteDataFiles
   }
 
   /**
-   * A user provided filter for determining which files will be considered by the rewrite strategy.
-   * This will be used in addition to whatever rules the rewrite strategy generates. For example
-   * this would be used for providing a restriction to only run rewrite on a specific partition.
+   * A user provided filter for determining which files will be considered by the rewrite strategy,
+   * based on the file data. This will be used in addition to whatever rules the rewrite strategy
+   * generates. For example, this would be used for providing a restriction to only run rewrite on a
+   * specific partition.
    *
-   * @param expression An iceberg expression used to determine which files will be considered for
-   *     rewriting
+   * @param expression An Iceberg expression used to determine which files will be considered for
+   *     rewriting, based on the file data
    * @return this for chaining
    */
   RewriteDataFiles filter(Expression expression);
 
   /**
-   * A user-defined predicate for filtering out data files to include in the rewrite.
+   * A user provided filter for determining which files will be considered by the rewrite strategy.
+   * Files will be filtered based on attributes of the file. This will be used in addition to
+   * whatever rules the rewrite strategy generates. For example, this would be used for providing a
+   * restriction to only run rewrite on files that have a specific path prefix.
    *
-   * @param predicate A predicate that returns true to include a file, false otherwise
+   * @param expression An Iceberg expression used to determine which files will be considered for
+   *     rewriting, based on the file attributes
    * @return this for chaining
    */
-  default RewriteDataFiles fileFilter(Predicate<DataFile> predicate) {
+  default RewriteDataFiles fileFilter(Expression expression) {
     throw new UnsupportedOperationException("File filter not implemented for this framework");
   }
 
